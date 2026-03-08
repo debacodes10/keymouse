@@ -1,0 +1,20 @@
+# Rust build artifacts
+/target/
+
+# Cargo package lock for libraries; keep for applications if desired.
+# This project is an app, so Cargo.lock is tracked.
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE/editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs and local runtime files
+*.log
