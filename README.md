@@ -1,103 +1,83 @@
-# keymouse
+# Keymouse
 
-`keymouse` is a macOS developer productivity tool that lets you control the mouse from the keyboard (Vim-style), with true key interception via `CGEventTap`.
+Control your mouse on macOS with fast, Vim-style keyboard navigation.
 
-## Demo
+![Keymouse Demo](demo.gif)
 
-<p align="center">
-  <img src="./keymouse_demo.gif" alt="keymouse demo showing keyboard-driven cursor movement, clicks, and grid jumps" width="900" />
-</p>
-<p align="center"><em>Keyboard-only cursor control, clicks, and jump-grid navigation.</em></p>
+*Demo: toggling mouse mode, moving with `H J K L`, clicking, and jumping the cursor with the grid system.*
 
 ## Features
 
-- Global keyboard interception on macOS using Quartz `CGEventTap`
-- Mouse mode toggle with `F8`
-- Relative mouse movement with `H`, `J`, `K`, `L`
-- Mouse clicks with keyboard:
-  - `F` = left click
-  - `D` = right click
-- Cursor Jump Grid (3x3) with two keystrokes:
-  - `;` enters grid mode
-  - `Q W E / A S D / Z X C` jumps to a grid region center
-- Multi-monitor aware grid jumps (uses the display containing the current cursor)
-- Event suppression while mouse/grid mode is active (keys do not leak to apps)
+- Move the cursor with **H J K L**
+- Trigger mouse clicks from the keyboard (`F` for left click, `D` for right click)
+- Jump the cursor with a 3x3 grid-based targeting system
+- Multi-monitor aware cursor jumping
+- System-level keyboard interception using macOS `CGEventTap`
+- Built in **Rust** with low-level event handling
 
-## Keymap
+## How It Works
 
-### Normal mode
+- Press **F8** to toggle mouse mode on or off.
+- In mouse mode, use **H J K L** to move the cursor.
+- Press **;** to open jump grid mode.
+- Press one grid key (`QWE / ASD / ZXC`) to instantly move the cursor.
 
-- Keyboard behaves normally
-- Events pass through to apps
+## Installation
 
-### Mouse mode (`F8`)
-
-- `H` -> move left
-- `J` -> move down
-- `K` -> move up
-- `L` -> move right
-- `F` -> left click
-- `D` -> right click
-
-While mouse mode is active, keyboard events are intercepted and suppressed by the event tap.
-
-### Grid mode (`;` while mouse mode is ON)
-
-Press one of:
-
-```text
-Q W E
-A S D
-Z X C
-```
-
-Mapping:
-
-- `Q` top-left
-- `W` top-center
-- `E` top-right
-- `A` middle-left
-- `S` center
-- `D` middle-right
-- `Z` bottom-left
-- `X` bottom-center
-- `C` bottom-right
-
-After a valid grid jump, grid mode exits automatically and returns to mouse mode.
-
-## Requirements
-
-- macOS
-- Rust toolchain (`cargo`, `rustc`)
-
-## Build and run
+Clone the repository:
 
 ```bash
-cargo run
+git clone https://github.com/debacodes10/keymouse.git
+cd keymouse
 ```
 
-You should see a startup message in stderr. Press `F8` to toggle mouse mode.
+Build a release binary:
 
-## macOS permissions
+```bash
+cargo build --release
+```
 
-For global keyboard interception and mouse control, grant permissions to the app that launches `keymouse` (usually your terminal, or the built binary):
+The compiled binary will be available at:
 
-1. Open `System Settings` -> `Privacy & Security`.
-2. In `Accessibility`, add/enable your terminal (or `keymouse` binary).
-3. In `Input Monitoring`, add/enable your terminal (or `keymouse` binary).
-4. Restart the terminal/app after granting permissions.
+```bash
+target/release/keymouse
+```
 
-Without these permissions, event tap creation or behavior may fail.
+## Usage
 
-## Implementation notes
+Start the tool:
 
-- Input interception is implemented with `CGEventTapCreate` at `kCGHIDEventTap` (`HeadInsertEventTap`).
-- Key suppression is done by returning `NULL` from the callback for intercepted events.
-- Mouse actions are performed through `enigo`.
-- No polling loop and no backspace hacks.
+```bash
+cargo run --release
+```
 
-## Dependencies
+Grant macOS permissions to the app launching Keymouse (usually your terminal):
 
-- `core-graphics`
-- `core-foundation`
-- `enigo`
+- `System Settings` -> `Privacy & Security` -> `Accessibility`
+- `System Settings` -> `Privacy & Security` -> `Input Monitoring`
+
+| Key     | Action            |
+| ------- | ----------------- |
+| F8      | Toggle mouse mode |
+| H J K L | Move cursor       |
+| F       | Left click        |
+| D       | Right click       |
+| ;       | Open jump grid    |
+
+## Roadmap
+
+- [x] Vim-style cursor movement
+- [x] Grid jump navigation
+- [x] Multi-monitor support
+- [ ] Recursive grid zoom
+- [ ] Custom key bindings
+- [ ] Configuration file
+- [ ] Homebrew installation
+
+## Contributing
+
+Contributions, suggestions, and feature requests are welcome. Open an issue to discuss ideas, or submit a pull request with a focused change.
+
+## License
+
+This repository does not currently include a license file.
