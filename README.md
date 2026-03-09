@@ -2,6 +2,13 @@
 
 `keymouse` is a macOS developer productivity tool that lets you control the mouse from the keyboard (Vim-style), with true key interception via `CGEventTap`.
 
+## Demo
+
+<p align="center">
+  <img src="./keymouse_demo.gif" alt="keymouse demo showing keyboard-driven cursor movement, clicks, and grid jumps" width="900" />
+</p>
+<p align="center"><em>Keyboard-only cursor control, clicks, and jump-grid navigation.</em></p>
+
 ## Features
 
 - Global keyboard interception on macOS using Quartz `CGEventTap`
