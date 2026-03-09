@@ -64,14 +64,42 @@ Grant macOS permissions to the app launching Keymouse (usually your terminal):
 | D       | Right click       |
 | ;       | Open jump grid    |
 
+## Configuration
+
+Keymouse loads configuration from:
+
+```text
+~/.config/keymouse/config.toml
+```
+
+If the file is missing, Keymouse uses built-in defaults. At startup, it also writes an example file to that path so you can customize bindings.
+
+Example `config.toml`:
+
+```toml
+movement_up = "k"
+movement_down = "j"
+movement_left = "h"
+movement_right = "l"
+
+grid_key = ";"
+confirm_key = "enter"
+
+left_click = "f"
+right_click = "d"
+
+fast_modifier = "shift"
+slow_modifier = "option"
+```
+
 ## Roadmap
 
 - [x] Vim-style cursor movement
 - [x] Grid jump navigation
 - [x] Multi-monitor support
 - [ ] Recursive grid zoom
-- [ ] Custom key bindings
-- [ ] Configuration file
+- [x] Custom key bindings
+- [x] Configuration file
 - [ ] Homebrew installation
 
 ## Contributing

@@ -1,0 +1,21 @@
+# Keymouse configuration example
+# Copy this to ~/.config/keymouse/config.toml and edit values.
+
+# Cursor movement keys (single key names)
+movement_up = "k"
+movement_down = "j"
+movement_left = "h"
+movement_right = "l"
+
+# Grid mode controls
+grid_key = ";"
+confirm_key = "enter"
+
+# Mouse click keys
+left_click = "f"
+right_click = "d"
+
+# Movement speed modifiers
+# Supported values: "shift", "option" (or "alt")
+fast_modifier = "shift"
+slow_modifier = "option"

@@ -7,3 +7,6 @@ edition = "2024"
 core-graphics = "0.23"
 core-foundation = "0.9"
 enigo = "0.1"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+dirs = "5"

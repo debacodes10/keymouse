@@ -1,0 +1,176 @@
+use core_graphics::event::CGKeyCode;
+use serde::Deserialize;
+use std::fs;
+use std::path::PathBuf;
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct Config {
+    pub movement_up: String,
+    pub movement_down: String,
+    pub movement_left: String,
+    pub movement_right: String,
+    pub grid_key: String,
+    pub confirm_key: String,
+    pub left_click: String,
+    pub right_click: String,
+    pub fast_modifier: String,
+    pub slow_modifier: String,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            movement_up: "k".to_string(),
+            movement_down: "j".to_string(),
+            movement_left: "h".to_string(),
+            movement_right: "l".to_string(),
+            grid_key: ";".to_string(),
+            confirm_key: "enter".to_string(),
+            left_click: "f".to_string(),
+            right_click: "d".to_string(),
+            fast_modifier: "shift".to_string(),
+            slow_modifier: "option".to_string(),
+        }
+    }
+}
+
+impl Config {
+    pub fn default_toml() -> &'static str {
+        r#"movement_up = "k"
+movement_down = "j"
+movement_left = "h"
+movement_right = "l"
+
+grid_key = ";"
+confirm_key = "enter"
+
+left_click = "f"
+right_click = "d"
+
+fast_modifier = "shift"
+slow_modifier = "option"
+"#
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum Modifier {
+    Shift,
+    Option,
+}
+
+impl Modifier {
+    fn from_string(value: &str) -> Self {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "option" | "alt" => Self::Option,
+            _ => Self::Shift,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct KeyBindings {
+    pub movement_up: i64,
+    pub movement_down: i64,
+    pub movement_left: i64,
+    pub movement_right: i64,
+    pub grid_key: i64,
+    pub confirm_key: i64,
+    pub left_click: i64,
+    pub right_click: i64,
+    pub fast_modifier: Modifier,
+    pub slow_modifier: Modifier,
+}
+
+impl KeyBindings {
+    pub fn from_config(config: &Config) -> Self {
+        let defaults = Config::default();
+
+        Self {
+            movement_up: keycode_i64(&config.movement_up, &defaults.movement_up),
+            movement_down: keycode_i64(&config.movement_down, &defaults.movement_down),
+            movement_left: keycode_i64(&config.movement_left, &defaults.movement_left),
+            movement_right: keycode_i64(&config.movement_right, &defaults.movement_right),
+            grid_key: keycode_i64(&config.grid_key, &defaults.grid_key),
+            confirm_key: keycode_i64(&config.confirm_key, &defaults.confirm_key),
+            left_click: keycode_i64(&config.left_click, &defaults.left_click),
+            right_click: keycode_i64(&config.right_click, &defaults.right_click),
+            fast_modifier: Modifier::from_string(&config.fast_modifier),
+            slow_modifier: Modifier::from_string(&config.slow_modifier),
+        }
+    }
+}
+
+pub fn key_from_string(key: &str) -> CGKeyCode {
+    match key.trim().to_ascii_lowercase().as_str() {
+        "a" => 0,
+        "s" => 1,
+        "d" => 2,
+        "f" => 3,
+        "g" => 5,
+        "h" => 4,
+        "j" => 38,
+        "k" => 40,
+        "l" => 37,
+        "q" => 12,
+        "w" => 13,
+        "e" => 14,
+        "z" => 6,
+        "x" => 7,
+        "c" => 8,
+        ";" | "semicolon" => 41,
+        "enter" | "return" => 36,
+        "escape" | "esc" => 53,
+        "f8" => 100,
+        // Modifiers are represented as flags, but we still accept them here.
+        "shift" => 56,
+        "option" | "alt" => 58,
+        _ => 0,
+    }
+}
+
+pub fn load_config() -> Config {
+    let path = config_path();
+
+    if path.exists() {
+        if let Ok(raw) = fs::read_to_string(&path)
+            && let Ok(config) = toml::from_str::<Config>(&raw)
+        {
+            eprintln!("Loaded Keymouse config from ~/.config/keymouse/config.toml");
+            return config;
+        }
+    }
+
+    let default = Config::default();
+    maybe_write_example_config(&path);
+    eprintln!("Using default Keymouse configuration");
+    default
+}
+
+fn config_path() -> PathBuf {
+    let mut path = dirs::config_dir().unwrap_or_else(|| PathBuf::from(".config"));
+    path.push("keymouse");
+    path.push("config.toml");
+    path
+}
+
+fn maybe_write_example_config(path: &PathBuf) {
+    if path.exists() {
+        return;
+    }
+
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::write(path, Config::default_toml());
+}
+
+fn keycode_i64(value: &str, fallback: &str) -> i64 {
+    let code = key_from_string(value);
+    if code != 0 {
+        return i64::from(code);
+    }
+
+    i64::from(key_from_string(fallback))
+}

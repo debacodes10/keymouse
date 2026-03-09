@@ -1,5 +1,7 @@
+mod config;
 mod grid;
 
+use config::{KeyBindings, Modifier};
 use core_foundation::mach_port::CFMachPortRef;
 use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoopSourceRef};
 use core_graphics::display::{CGDirectDisplayID, CGDisplay};
@@ -16,18 +18,13 @@ use grid::recursive::RecursiveGrid;
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::ptr;
+use std::sync::OnceLock;
 use std::thread_local;
 
-const KEYCODE_H: i64 = 4;
-const KEYCODE_J: i64 = 38;
-const KEYCODE_K: i64 = 40;
-const KEYCODE_L: i64 = 37;
-const KEYCODE_F: i64 = 3;
 const KEYCODE_D: i64 = 2;
+const KEYCODE_F: i64 = 3;
 const KEYCODE_G: i64 = 5;
 const KEYCODE_F8: i64 = 100;
-const KEYCODE_SEMICOLON: i64 = 41;
-const KEYCODE_ENTER: i64 = 36;
 const KEYCODE_ESCAPE: i64 = 53;
 const KEYCODE_Q: i64 = 12;
 const KEYCODE_W: i64 = 13;
@@ -46,6 +43,8 @@ const MAX_DISPLAYS: usize = 16;
 
 const EVENT_FLAG_MASK_SHIFT: u64 = 1 << 17;
 const EVENT_FLAG_MASK_OPTION: u64 = 1 << 19;
+
+static KEY_BINDINGS: OnceLock<KeyBindings> = OnceLock::new();
 
 struct AppState {
     enigo: Enigo,
@@ -130,13 +129,17 @@ fn grid_cell_for_keycode(keycode: i64) -> Option<(i32, i32)> {
     }
 }
 
-fn movement_step(flags: u64) -> i32 {
-    let shift_pressed = (flags & EVENT_FLAG_MASK_SHIFT) != 0;
-    let option_pressed = (flags & EVENT_FLAG_MASK_OPTION) != 0;
+fn modifier_active(flags: u64, modifier: Modifier) -> bool {
+    match modifier {
+        Modifier::Shift => (flags & EVENT_FLAG_MASK_SHIFT) != 0,
+        Modifier::Option => (flags & EVENT_FLAG_MASK_OPTION) != 0,
+    }
+}
 
-    if shift_pressed {
+fn movement_step(flags: u64, bindings: KeyBindings) -> i32 {
+    if modifier_active(flags, bindings.fast_modifier) {
         FAST_SPEED
-    } else if option_pressed {
+    } else if modifier_active(flags, bindings.slow_modifier) {
         SLOW_SPEED
     } else {
         NORMAL_SPEED
@@ -188,6 +191,7 @@ unsafe extern "C" fn keyboard_callback(
 
     APP_STATE.with(|cell| {
         let mut state = cell.borrow_mut();
+        let bindings = *KEY_BINDINGS.get().expect("key bindings must be initialized");
 
         if keycode == KEYCODE_F8 && matches!(event_type, CGEventType::KeyDown) {
             state.mouse_mode = !state.mouse_mode;
@@ -205,7 +209,7 @@ unsafe extern "C" fn keyboard_callback(
             return event;
         }
 
-        if matches!(event_type, CGEventType::KeyDown) && keycode == KEYCODE_SEMICOLON {
+        if matches!(event_type, CGEventType::KeyDown) && keycode == bindings.grid_key {
             // SAFETY: event is provided by Quartz for this callback invocation.
             let cursor_point = unsafe { CGEventGetLocation(event) };
             let display = display_for_point(cursor_point);
@@ -215,7 +219,7 @@ unsafe extern "C" fn keyboard_callback(
 
         if state.grid.is_active() {
             if matches!(event_type, CGEventType::KeyDown) {
-                if keycode == KEYCODE_ENTER {
+                if keycode == bindings.confirm_key {
                     if let Some(final_bounds) = state.grid.confirm() {
                         let (target_x, target_y) = final_bounds.center();
                         state.enigo.mouse_move_to(target_x, target_y);
@@ -236,24 +240,24 @@ unsafe extern "C" fn keyboard_callback(
         }
 
         if matches!(event_type, CGEventType::KeyDown) {
-            let step = movement_step(flags);
+            let step = movement_step(flags, bindings);
             match keycode {
-                KEYCODE_H => {
+                key if key == bindings.movement_left => {
                     state.enigo.mouse_move_relative(-step, 0);
                 }
-                KEYCODE_J => {
+                key if key == bindings.movement_down => {
                     state.enigo.mouse_move_relative(0, step);
                 }
-                KEYCODE_K => {
+                key if key == bindings.movement_up => {
                     state.enigo.mouse_move_relative(0, -step);
                 }
-                KEYCODE_L => {
+                key if key == bindings.movement_right => {
                     state.enigo.mouse_move_relative(step, 0);
                 }
-                KEYCODE_F => {
+                key if key == bindings.left_click => {
                     state.enigo.mouse_click(MouseButton::Left);
                 }
-                KEYCODE_D => {
+                key if key == bindings.right_click => {
                     state.enigo.mouse_click(MouseButton::Right);
                 }
                 _ => {}
@@ -266,6 +270,9 @@ unsafe extern "C" fn keyboard_callback(
 }
 
 fn main() {
+    let config = config::load_config();
+    let _ = KEY_BINDINGS.set(KeyBindings::from_config(&config));
+
     let mask = event_mask(&[CGEventType::KeyDown, CGEventType::KeyUp]);
 
     // SAFETY: CoreGraphics/CoreFoundation APIs are called with valid arguments.
