@@ -97,7 +97,7 @@ slow_modifier = "option"
 - [x] Vim-style cursor movement
 - [x] Grid jump navigation
 - [x] Multi-monitor support
-- [ ] Recursive grid zoom
+- [x] Recursive grid zoom
 - [x] Custom key bindings
 - [x] Configuration file
 - [ ] Homebrew installation
