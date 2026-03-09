@@ -24,6 +24,35 @@ Control your mouse on macOS with fast, Vim-style keyboard navigation.
 
 ## Installation
 
+### Option 1: Install from crates.io (recommended)
+
+```bash
+cargo install keymouse
+```
+
+Run it:
+
+```bash
+keymouse
+```
+
+### Option 2: Download a prebuilt binary from GitHub Releases
+
+Latest release:
+
+- https://github.com/debacodes10/keymouse/releases/latest
+
+Example (Apple Silicon / arm64):
+
+```bash
+curl -L -o keymouse-macos-arm64.zip https://github.com/debacodes10/keymouse/releases/latest/download/keymouse-macos-arm64.zip
+unzip keymouse-macos-arm64.zip
+chmod +x keymouse-macos-arm64
+./keymouse-macos-arm64
+```
+
+### Option 3: Build from source
+
 Clone the repository:
 
 ```bash
@@ -48,7 +77,13 @@ target/release/keymouse
 Start the tool:
 
 ```bash
-cargo run --release
+keymouse
+```
+
+If you built from source, run:
+
+```bash
+./target/release/keymouse
 ```
 
 Grant macOS permissions to the app launching Keymouse (usually your terminal):

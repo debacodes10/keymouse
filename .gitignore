@@ -18,3 +18,7 @@
 
 # Logs and local runtime files
 *.log
+
+# Local release artifacts (generated for GitHub releases)
+keymouse-macos-*
+*.zip
