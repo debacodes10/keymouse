@@ -220,7 +220,9 @@ unsafe extern "C" fn keyboard_callback(
             // SAFETY: event is provided by Quartz for this callback invocation.
             let cursor_point = unsafe { CGEventGetLocation(event) };
             let display = display_for_point(cursor_point);
-            state.grid.start(GridBounds::from_display(display));
+            let display_bounds = GridBounds::from_display(display);
+            state.grid.start(display_bounds);
+            state.overlay.calibrate_from_cursor(cursor_point);
             if let Some((bounds, depth)) = state.grid.render_state() {
                 state.overlay.show_or_update(bounds, depth);
             }

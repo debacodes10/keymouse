@@ -22,6 +22,8 @@ impl GridBounds {
     pub fn subdivide(&self, row: i32, col: i32) -> Self {
         let cell_width = self.width / 3.0;
         let cell_height = self.height / 3.0;
+        // Grid rows map top-to-bottom (QWE, ASD, ZXC). Quartz global display
+        // coordinates use a top-origin Y axis, so row index maps directly.
 
         Self {
             x: self.x + (col as f64) * cell_width,
@@ -35,5 +37,27 @@ impl GridBounds {
         let target_x = self.x + (self.width / 2.0);
         let target_y = self.y + (self.height / 2.0);
         (target_x.round() as i32, target_y.round() as i32)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::GridBounds;
+
+    #[test]
+    fn subdivide_preserves_top_to_bottom_row_order() {
+        let root = GridBounds {
+            x: 0.0,
+            y: 0.0,
+            width: 300.0,
+            height: 300.0,
+        };
+
+        let top = root.subdivide(0, 1);
+        let middle = root.subdivide(1, 1);
+        let bottom = root.subdivide(2, 1);
+
+        assert!(top.y < middle.y);
+        assert!(middle.y < bottom.y);
     }
 }

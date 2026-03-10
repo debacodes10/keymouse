@@ -5,11 +5,21 @@ use cocoa::appkit::{
 };
 use cocoa::base::{NO, YES, id, nil};
 use cocoa::foundation::{NSAutoreleasePool, NSPoint, NSRect, NSSize, NSString};
+use core_graphics::display::{CGDirectDisplayID, CGDisplay};
 use objc::{class, msg_send, sel, sel_impl};
 
 const LABELS: [&str; 9] = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"];
 const ALIGN_LEFT: i64 = 0;
 const ALIGN_CENTER: i64 = 2;
+const MAX_DISPLAYS: usize = 16;
+
+unsafe extern "C" {
+    fn CGGetActiveDisplayList(
+        max_displays: u32,
+        active_displays: *mut CGDirectDisplayID,
+        display_count: *mut u32,
+    ) -> i32;
+}
 
 pub struct Overlay {
     window: id,
@@ -36,6 +46,11 @@ impl Overlay {
             cell_views: [nil; 9],
             cell_labels: [nil; 9],
         }
+    }
+
+    pub fn calibrate_from_cursor(&mut self, _cursor_quartz: core_graphics::geometry::CGPoint) {
+        // No-op: keep API stable for call sites. Overlay conversion is
+        // deterministic via desktop-bounds Y flip in appkit_frame_y().
     }
 
     pub fn show_or_update(&mut self, bounds: GridBounds, depth: usize) {
@@ -160,11 +175,21 @@ impl Overlay {
 
     fn update_frame(&self, bounds: GridBounds) {
         unsafe {
+            let appkit_y = self.appkit_frame_y(bounds);
             let frame = NSRect::new(
-                NSPoint::new(bounds.x, bounds.y),
+                NSPoint::new(bounds.x, appkit_y),
                 NSSize::new(bounds.width, bounds.height),
             );
             let _: () = msg_send![self.window, setFrame: frame display: YES];
+        }
+    }
+
+    fn appkit_frame_y(&self, bounds: GridBounds) -> f64 {
+        if let Some(desktop) = desktop_bounds() {
+            let base = desktop.y + desktop.height;
+            base - (bounds.y + bounds.height)
+        } else {
+            bounds.y
         }
     }
 
@@ -206,6 +231,45 @@ impl Overlay {
             let _: () = msg_send![self.depth_label, setStringValue: ns_text];
         }
     }
+}
+
+fn desktop_bounds() -> Option<GridBounds> {
+    let mut display_ids = [0_u32; MAX_DISPLAYS];
+    let mut display_count = 0_u32;
+    let result = unsafe {
+        CGGetActiveDisplayList(
+            MAX_DISPLAYS as u32,
+            display_ids.as_mut_ptr(),
+            &mut display_count,
+        )
+    };
+    if result != 0 || display_count == 0 {
+        return None;
+    }
+
+    let mut min_x = f64::INFINITY;
+    let mut min_y = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
+
+    for display_id in display_ids.iter().copied().take(display_count as usize) {
+        let bounds = CGDisplay::new(display_id).bounds();
+        min_x = min_x.min(bounds.origin.x);
+        min_y = min_y.min(bounds.origin.y);
+        max_x = max_x.max(bounds.origin.x + bounds.size.width);
+        max_y = max_y.max(bounds.origin.y + bounds.size.height);
+    }
+
+    if !min_x.is_finite() || !min_y.is_finite() || !max_x.is_finite() || !max_y.is_finite() {
+        return None;
+    }
+
+    Some(GridBounds {
+        x: min_x,
+        y: min_y,
+        width: max_x - min_x,
+        height: max_y - min_y,
+    })
 }
 
 impl Drop for Overlay {
