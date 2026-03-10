@@ -82,6 +82,12 @@ If you built from source:
 ./target/release/keymouse
 ```
 
+Validate your config without starting the event loop:
+
+```bash
+keymouse --check-config
+```
+
 ### 2) Grant macOS permissions
 
 Grant permissions to the app that launches Keymouse (usually Terminal/iTerm):

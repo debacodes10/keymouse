@@ -1,5 +1,6 @@
 use core_graphics::event::CGKeyCode;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
@@ -67,17 +68,18 @@ slow_modifier = "option"
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Modifier {
     Shift,
     Option,
 }
 
 impl Modifier {
-    fn from_string(value: &str) -> Self {
+    fn parse(value: &str) -> Option<Self> {
         match value.trim().to_ascii_lowercase().as_str() {
-            "option" | "alt" => Self::Option,
-            _ => Self::Shift,
+            "shift" => Some(Self::Shift),
+            "option" | "alt" => Some(Self::Option),
+            _ => None,
         }
     }
 }
@@ -102,23 +104,23 @@ pub struct KeyBindings {
 
 impl KeyBindings {
     pub fn from_config(config: &Config) -> Self {
-        let defaults = Config::default();
-
         Self {
-            movement_up: keycode_i64(&config.movement_up, &defaults.movement_up),
-            movement_down: keycode_i64(&config.movement_down, &defaults.movement_down),
-            movement_left: keycode_i64(&config.movement_left, &defaults.movement_left),
-            movement_right: keycode_i64(&config.movement_right, &defaults.movement_right),
-            scroll_up: keycode_i64(&config.scroll_up, &defaults.scroll_up),
-            scroll_down: keycode_i64(&config.scroll_down, &defaults.scroll_down),
-            scroll_left: keycode_i64(&config.scroll_left, &defaults.scroll_left),
-            scroll_right: keycode_i64(&config.scroll_right, &defaults.scroll_right),
-            grid_key: keycode_i64(&config.grid_key, &defaults.grid_key),
-            confirm_key: keycode_i64(&config.confirm_key, &defaults.confirm_key),
-            left_click: keycode_i64(&config.left_click, &defaults.left_click),
-            right_click: keycode_i64(&config.right_click, &defaults.right_click),
-            fast_modifier: Modifier::from_string(&config.fast_modifier),
-            slow_modifier: Modifier::from_string(&config.slow_modifier),
+            movement_up: required_keycode(&config.movement_up, "movement_up"),
+            movement_down: required_keycode(&config.movement_down, "movement_down"),
+            movement_left: required_keycode(&config.movement_left, "movement_left"),
+            movement_right: required_keycode(&config.movement_right, "movement_right"),
+            scroll_up: required_keycode(&config.scroll_up, "scroll_up"),
+            scroll_down: required_keycode(&config.scroll_down, "scroll_down"),
+            scroll_left: required_keycode(&config.scroll_left, "scroll_left"),
+            scroll_right: required_keycode(&config.scroll_right, "scroll_right"),
+            grid_key: required_keycode(&config.grid_key, "grid_key"),
+            confirm_key: required_keycode(&config.confirm_key, "confirm_key"),
+            left_click: required_keycode(&config.left_click, "left_click"),
+            right_click: required_keycode(&config.right_click, "right_click"),
+            fast_modifier: Modifier::parse(&config.fast_modifier)
+                .expect("validated config must have a valid fast_modifier"),
+            slow_modifier: Modifier::parse(&config.slow_modifier)
+                .expect("validated config must have a valid slow_modifier"),
         }
     }
 }
@@ -158,11 +160,25 @@ pub fn key_from_string(key: &str) -> Option<CGKeyCode> {
 pub fn load_config() -> Config {
     let path = config_path();
 
-    if path.exists()
-        && let Ok(raw) = fs::read_to_string(&path)
-        && let Ok(config) = toml::from_str::<Config>(&raw)
-    {
-        eprintln!("Loaded Keymouse config from ~/.config/keymouse/config.toml");
+    if path.exists() {
+        let config = match parse_config_file(&path) {
+            Ok(config) => config,
+            Err(error) => {
+                eprintln!("{}", error);
+                std::process::exit(1);
+            }
+        };
+
+        let validation_errors = validate_config(&config);
+        if !validation_errors.is_empty() {
+            eprintln!("Invalid Keymouse configuration in {}:", path.display());
+            for error in validation_errors {
+                eprintln!("  - {}", error);
+            }
+            std::process::exit(1);
+        }
+
+        eprintln!("Loaded Keymouse config from {}", path.display());
         return config;
     }
 
@@ -170,6 +186,28 @@ pub fn load_config() -> Config {
     maybe_write_example_config(&path);
     eprintln!("Using default Keymouse configuration");
     default
+}
+
+pub fn check_config() -> Result<String, Vec<String>> {
+    let path = config_path();
+    if !path.exists() {
+        return Ok(format!(
+            "No config file found at {}. Defaults are valid.",
+            path.display()
+        ));
+    }
+
+    let config = match parse_config_file(&path) {
+        Ok(config) => config,
+        Err(error) => return Err(vec![error]),
+    };
+
+    let validation_errors = validate_config(&config);
+    if validation_errors.is_empty() {
+        Ok(format!("Config is valid: {}", path.display()))
+    } else {
+        Err(validation_errors)
+    }
 }
 
 fn config_path() -> PathBuf {
@@ -190,17 +228,120 @@ fn maybe_write_example_config(path: &PathBuf) {
     let _ = fs::write(path, Config::default_toml());
 }
 
-fn keycode_i64(value: &str, fallback: &str) -> i64 {
-    if let Some(code) = key_from_string(value) {
-        return i64::from(code);
+fn parse_config_file(path: &PathBuf) -> Result<Config, String> {
+    let raw = fs::read_to_string(path)
+        .map_err(|error| format!("Failed to read config at {}: {}", path.display(), error))?;
+
+    toml::from_str::<Config>(&raw)
+        .map_err(|error| format!("Invalid TOML in {}: {}", path.display(), error))
+}
+
+fn required_keycode(value: &str, field_name: &str) -> i64 {
+    let code = key_from_string(value).unwrap_or_else(|| {
+        panic!(
+            "validated config must provide a supported key for {}",
+            field_name
+        )
+    });
+    i64::from(code)
+}
+
+fn validate_config(config: &Config) -> Vec<String> {
+    let mut errors = Vec::new();
+    let mut seen: HashMap<String, Vec<&str>> = HashMap::new();
+
+    for (field, value) in action_bindings(config) {
+        let normalized = value.trim().to_ascii_lowercase();
+        if normalized.is_empty() {
+            errors.push(format!("`{}` cannot be empty.", field));
+            continue;
+        }
+
+        if is_modifier_name(&normalized) {
+            errors.push(format!(
+                "`{}` cannot use modifier key `{}`; choose a regular key.",
+                field, value
+            ));
+        }
+
+        if normalized == "f8" {
+            errors.push(format!(
+                "`{}` cannot use `f8`; it is reserved for mouse-mode toggle.",
+                field
+            ));
+        }
+
+        if key_from_string(&normalized).is_none() {
+            errors.push(format!(
+                "`{}` has unsupported key `{}`. Use a supported key name from README.",
+                field, value
+            ));
+        }
+
+        seen.entry(normalized).or_default().push(field);
     }
 
-    i64::from(key_from_string(fallback).unwrap_or_default())
+    for (key, fields) in seen {
+        if fields.len() > 1 {
+            errors.push(format!(
+                "Key `{}` is assigned to multiple actions: {}.",
+                key,
+                fields.join(", ")
+            ));
+        }
+    }
+
+    let fast = config.fast_modifier.trim().to_ascii_lowercase();
+    let slow = config.slow_modifier.trim().to_ascii_lowercase();
+    let fast_parsed = Modifier::parse(&fast);
+    let slow_parsed = Modifier::parse(&slow);
+
+    if fast_parsed.is_none() {
+        errors.push(format!(
+            "`fast_modifier` has unsupported value `{}`. Allowed: `shift`, `option`, `alt`.",
+            config.fast_modifier
+        ));
+    }
+    if slow_parsed.is_none() {
+        errors.push(format!(
+            "`slow_modifier` has unsupported value `{}`. Allowed: `shift`, `option`, `alt`.",
+            config.slow_modifier
+        ));
+    }
+    if fast_parsed.is_some() && slow_parsed.is_some() && fast_parsed == slow_parsed {
+        errors.push(
+            "`fast_modifier` and `slow_modifier` cannot be the same; choose distinct modifiers."
+                .to_string(),
+        );
+    }
+
+    errors
+}
+
+fn action_bindings(config: &Config) -> [(&'static str, &str); 12] {
+    [
+        ("movement_up", &config.movement_up),
+        ("movement_down", &config.movement_down),
+        ("movement_left", &config.movement_left),
+        ("movement_right", &config.movement_right),
+        ("scroll_up", &config.scroll_up),
+        ("scroll_down", &config.scroll_down),
+        ("scroll_left", &config.scroll_left),
+        ("scroll_right", &config.scroll_right),
+        ("grid_key", &config.grid_key),
+        ("confirm_key", &config.confirm_key),
+        ("left_click", &config.left_click),
+        ("right_click", &config.right_click),
+    ]
+}
+
+fn is_modifier_name(value: &str) -> bool {
+    matches!(value, "shift" | "option" | "alt")
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{key_from_string, keycode_i64};
+    use super::{Config, key_from_string, validate_config};
 
     #[test]
     fn parses_a_keycode_without_treating_it_as_invalid() {
@@ -208,7 +349,78 @@ mod tests {
     }
 
     #[test]
-    fn falls_back_for_unknown_key_names() {
-        assert_eq!(keycode_i64("unknown", "k"), 40);
+    fn rejects_duplicate_action_bindings() {
+        let config = Config {
+            movement_up: "k".to_string(),
+            movement_down: "k".to_string(),
+            ..Config::default()
+        };
+
+        let errors = validate_config(&config);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.contains("assigned to multiple actions")),
+            "expected duplicate binding error, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_reserved_toggle_key_in_actions() {
+        let config = Config {
+            left_click: "f8".to_string(),
+            ..Config::default()
+        };
+
+        let errors = validate_config(&config);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.contains("reserved for mouse-mode toggle")),
+            "expected reserved key error, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_modifier_values_and_duplicates() {
+        let config = Config {
+            fast_modifier: "hyper".to_string(),
+            slow_modifier: "hyper".to_string(),
+            ..Config::default()
+        };
+
+        let errors = validate_config(&config);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.contains("fast_modifier") && error.contains("unsupported")),
+            "expected invalid fast_modifier error, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_same_fast_and_slow_modifiers() {
+        let config = Config {
+            fast_modifier: "shift".to_string(),
+            slow_modifier: "shift".to_string(),
+            ..Config::default()
+        };
+
+        let errors = validate_config(&config);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.contains("cannot be the same")),
+            "expected modifier mismatch error, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn accepts_default_config() {
+        let errors = validate_config(&Config::default());
+        assert!(
+            errors.is_empty(),
+            "expected no validation errors, got: {errors:?}"
+        );
     }
 }
