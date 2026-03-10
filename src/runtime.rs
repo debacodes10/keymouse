@@ -23,6 +23,7 @@ use std::thread_local;
 
 static KEY_BINDINGS: OnceLock<KeyBindings> = OnceLock::new();
 static EVENT_TAP: OnceLock<usize> = OnceLock::new();
+static MOUSE_MODE_LISTENER: OnceLock<fn(bool)> = OnceLock::new();
 
 struct AppState {
     enigo: Enigo,
@@ -57,7 +58,25 @@ thread_local! {
     static APP_STATE: RefCell<AppState> = RefCell::new(AppState::new());
 }
 
-pub fn run() {
+fn apply_mouse_mode_state(state: &mut AppState, enabled: bool) {
+    let changed = state.mouse_mode != enabled;
+    state.mouse_mode = enabled;
+    if !enabled {
+        state.grid.cancel();
+        state.overlay.hide();
+        state.release_drag_if_active();
+        state.held_keys.clear();
+    }
+    if changed && let Some(listener) = MOUSE_MODE_LISTENER.get() {
+        listener(enabled);
+    }
+}
+
+pub fn initialize() {
+    if KEY_BINDINGS.get().is_some() {
+        return;
+    }
+
     let config = config::load_config();
     let bindings = KeyBindings::from_config(&config);
     let _ = KEY_BINDINGS.set(bindings);
@@ -96,10 +115,33 @@ pub fn run() {
             kCFRunLoopCommonModes as *const c_void,
         );
         CGEventTapEnable(tap, true);
-
-        eprintln!("keymouse running. Press F8 to toggle mouse mode.");
-        CFRunLoopRun();
     }
+}
+
+pub fn run_headless() {
+    initialize();
+    eprintln!("keymouse running (headless). Press F8 to toggle mouse mode.");
+    // SAFETY: Run loop is initialized and ready to process event-tap callbacks.
+    unsafe { CFRunLoopRun() }
+}
+
+pub fn mouse_mode_enabled() -> bool {
+    APP_STATE.with(|cell| cell.borrow().mouse_mode)
+}
+
+pub fn set_mouse_mode_listener(listener: fn(bool)) {
+    let _ = MOUSE_MODE_LISTENER.set(listener);
+}
+
+pub fn set_mouse_mode(enabled: bool) {
+    APP_STATE.with(|cell| {
+        let mut state = cell.borrow_mut();
+        apply_mouse_mode_state(&mut state, enabled);
+    });
+}
+
+pub fn shutdown() {
+    set_mouse_mode(false);
 }
 
 unsafe extern "C" fn keyboard_callback(
@@ -144,17 +186,9 @@ unsafe extern "C" fn keyboard_callback(
         };
 
         if keycode == KEYCODE_F8 && is_first_keydown {
-            state.mouse_mode = !state.mouse_mode;
-            if !state.mouse_mode {
-                state.grid.cancel();
-                state.overlay.hide();
-                state.release_drag_if_active();
-                state.held_keys.clear();
-            }
-            eprintln!(
-                "mouse mode: {}",
-                if state.mouse_mode { "on" } else { "off" }
-            );
+            let next = !state.mouse_mode;
+            apply_mouse_mode_state(&mut state, next);
+            eprintln!("mouse mode: {}", if next { "on" } else { "off" });
             return ptr::null_mut();
         }
 

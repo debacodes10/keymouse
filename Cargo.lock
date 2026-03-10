@@ -193,6 +193,7 @@ dependencies = [
  "core-graphics",
  "dirs",
  "enigo",
+ "libc",
  "objc",
  "serde",
  "toml",

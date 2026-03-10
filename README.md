@@ -9,6 +9,8 @@ Control your mouse on macOS with fast, Vim-style keyboard navigation.
 ## Features
 
 - Global keyboard-driven mouse control on macOS (`CGEventTap`)
+- Menu bar app mode (no dedicated terminal required)
+- Start-at-login toggle from menu bar (`LaunchAgent`)
 - Toggleable mouse mode (`F8`) so normal typing is unaffected when off
 - Cursor movement with configurable keys (defaults: `H J K L`)
 - Speed modifiers for movement/scroll (defaults: `Shift` fast, `Option/Alt` slow)
@@ -32,6 +34,8 @@ Run it:
 ```bash
 keymouse
 ```
+
+This launches Keymouse as a macOS menu bar app (`KM`).
 
 ### Option 2: Download a prebuilt binary from GitHub Releases
 
@@ -89,6 +93,12 @@ Validate your config without starting the event loop:
 keymouse --check-config
 ```
 
+Run without menu bar UI (legacy headless mode):
+
+```bash
+keymouse --headless
+```
+
 ### 2) Grant macOS permissions
 
 Grant permissions to the app that launches Keymouse (usually Terminal/iTerm):
@@ -99,8 +109,14 @@ Grant permissions to the app that launches Keymouse (usually Terminal/iTerm):
 ### 3) Toggle mouse mode
 
 - Press `F8` to turn mouse mode on/off.
+- Or use the menu bar item: `KM` -> `Turn Mouse Mode On/Off`.
 - When mouse mode is **off**, all keys behave normally.
 - When mouse mode is **on**, keydown/keyup events are intercepted by Keymouse.
+
+### 4) Start at login
+
+- In the menu bar app, use `KM` -> `Start at Login`.
+- This installs/removes a user LaunchAgent for the current executable path.
 
 ### 4) Control the pointer
 
