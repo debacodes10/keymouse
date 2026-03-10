@@ -20,6 +20,7 @@ confirm_key = "enter"
 # Mouse click keys
 left_click = "f"
 right_click = "d"
+drag_toggle = "v" # Toggle left-button hold for drag (press again to release)
 
 # Movement speed modifiers
 # Supported values: "shift", "option" (or "alt")

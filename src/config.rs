@@ -19,6 +19,7 @@ pub struct Config {
     pub confirm_key: String,
     pub left_click: String,
     pub right_click: String,
+    pub drag_toggle: String,
     pub fast_modifier: String,
     pub slow_modifier: String,
 }
@@ -38,6 +39,7 @@ impl Default for Config {
             confirm_key: "enter".to_string(),
             left_click: "f".to_string(),
             right_click: "d".to_string(),
+            drag_toggle: "v".to_string(),
             fast_modifier: "shift".to_string(),
             slow_modifier: "option".to_string(),
         }
@@ -61,6 +63,7 @@ confirm_key = "enter"
 
 left_click = "f"
 right_click = "d"
+drag_toggle = "v"
 
 fast_modifier = "shift"
 slow_modifier = "option"
@@ -98,6 +101,7 @@ pub struct KeyBindings {
     pub confirm_key: i64,
     pub left_click: i64,
     pub right_click: i64,
+    pub drag_toggle: i64,
     pub fast_modifier: Modifier,
     pub slow_modifier: Modifier,
 }
@@ -117,6 +121,7 @@ impl KeyBindings {
             confirm_key: required_keycode(&config.confirm_key, "confirm_key"),
             left_click: required_keycode(&config.left_click, "left_click"),
             right_click: required_keycode(&config.right_click, "right_click"),
+            drag_toggle: required_keycode(&config.drag_toggle, "drag_toggle"),
             fast_modifier: Modifier::parse(&config.fast_modifier)
                 .expect("validated config must have a valid fast_modifier"),
             slow_modifier: Modifier::parse(&config.slow_modifier)
@@ -143,6 +148,7 @@ pub fn key_from_string(key: &str) -> Option<CGKeyCode> {
         "u" => Some(32),
         "w" => Some(13),
         "e" => Some(14),
+        "v" => Some(9),
         "z" => Some(6),
         "x" => Some(7),
         "c" => Some(8),
@@ -318,7 +324,7 @@ fn validate_config(config: &Config) -> Vec<String> {
     errors
 }
 
-fn action_bindings(config: &Config) -> [(&'static str, &str); 12] {
+fn action_bindings(config: &Config) -> [(&'static str, &str); 13] {
     [
         ("movement_up", &config.movement_up),
         ("movement_down", &config.movement_down),
@@ -332,6 +338,7 @@ fn action_bindings(config: &Config) -> [(&'static str, &str); 12] {
         ("confirm_key", &config.confirm_key),
         ("left_click", &config.left_click),
         ("right_click", &config.right_click),
+        ("drag_toggle", &config.drag_toggle),
     ]
 }
 

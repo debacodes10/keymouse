@@ -14,6 +14,7 @@ Control your mouse on macOS with fast, Vim-style keyboard navigation.
 - Speed modifiers for movement/scroll (defaults: `Shift` fast, `Option/Alt` slow)
 - Scroll control with configurable keys (defaults: `U N B M`)
 - Left/right click from keyboard (defaults: `F` / `D`)
+- Drag toggle to hold/release left mouse button (default: `V`)
 - Recursive 3x3 jump grid with translucent overlay and depth indicator
 - Multi-monitor aware grid targeting on the display under the cursor
 - Automatic event-tap re-enable if macOS temporarily disables the tap
@@ -103,9 +104,10 @@ Grant permissions to the app that launches Keymouse (usually Terminal/iTerm):
 
 ### 4) Control the pointer
 
-- Move: `H J K L`
+- Move: `H J K L` (hold keys for continuous movement)
 - Scroll: `U N B M`
 - Click: `F` (left), `D` (right)
+- Drag: `V` to hold left mouse button, `V` again to release
 - Modifiers: `Shift` = fast, `Option/Alt` = slow
 
 ### 5) Use jump grid mode
@@ -127,6 +129,7 @@ Grant permissions to the app that launches Keymouse (usually Terminal/iTerm):
 | `U N B M` | Scroll up/down/left/right |
 | `F` | Left click |
 | `D` | Right click |
+| `V` | Toggle drag (left button hold/release) |
 | `;` | Enter grid mode |
 | `Q/W/E/A/S/D/Z/X/C` | Select grid cell recursively |
 | `Enter` | Confirm grid jump |
@@ -164,6 +167,7 @@ confirm_key = "enter"
 
 left_click = "f"
 right_click = "d"
+drag_toggle = "v"
 
 fast_modifier = "shift"
 slow_modifier = "option"
@@ -171,11 +175,11 @@ slow_modifier = "option"
 
 Supported key names for bindings are currently:
 
-- Letters used by default (`a b c d e f g h j k l m n q s u w x z`)
+- Letters used by default (`a b c d e f g h j k l m n q s u v w x z`)
 - `;` (or `"semicolon"`), `"enter"`/`"return"`, `"escape"`/`"esc"`, `"f8"`
 - Modifiers: `"shift"` and `"option"`/`"alt"` (for modifier fields)
 
-Unknown key names fall back to default values.
+Invalid or conflicting config values now produce startup validation errors.
 
 ## Troubleshooting
 

@@ -15,6 +15,7 @@ use core_graphics::event::{
 use core_graphics::sys::CGEventRef;
 use enigo::{Enigo, MouseButton, MouseControllable};
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::ffi::c_void;
 use std::ptr;
 use std::sync::OnceLock;
@@ -26,8 +27,10 @@ static EVENT_TAP: OnceLock<usize> = OnceLock::new();
 struct AppState {
     enigo: Enigo,
     mouse_mode: bool,
+    drag_active: bool,
     grid: RecursiveGrid,
     overlay: Overlay,
+    held_keys: HashSet<i64>,
 }
 
 impl AppState {
@@ -35,8 +38,17 @@ impl AppState {
         Self {
             enigo: Enigo::new(),
             mouse_mode: false,
+            drag_active: false,
             grid: RecursiveGrid::new(),
             overlay: Overlay::new(),
+            held_keys: HashSet::new(),
+        }
+    }
+
+    fn release_drag_if_active(&mut self) {
+        if self.drag_active {
+            self.enigo.mouse_up(MouseButton::Left);
+            self.drag_active = false;
         }
     }
 }
@@ -47,7 +59,8 @@ thread_local! {
 
 pub fn run() {
     let config = config::load_config();
-    let _ = KEY_BINDINGS.set(KeyBindings::from_config(&config));
+    let bindings = KeyBindings::from_config(&config);
+    let _ = KEY_BINDINGS.set(bindings);
 
     let mask = event_mask(&[CGEventType::KeyDown, CGEventType::KeyUp]);
 
@@ -122,12 +135,21 @@ unsafe extern "C" fn keyboard_callback(
         let bindings = *KEY_BINDINGS
             .get()
             .expect("key bindings must be initialized");
+        let is_key_down = matches!(event_type, CGEventType::KeyDown);
+        let is_first_keydown = if is_key_down {
+            state.held_keys.insert(keycode)
+        } else {
+            state.held_keys.remove(&keycode);
+            false
+        };
 
-        if keycode == KEYCODE_F8 && matches!(event_type, CGEventType::KeyDown) {
+        if keycode == KEYCODE_F8 && is_first_keydown {
             state.mouse_mode = !state.mouse_mode;
             if !state.mouse_mode {
                 state.grid.cancel();
                 state.overlay.hide();
+                state.release_drag_if_active();
+                state.held_keys.clear();
             }
             eprintln!(
                 "mouse mode: {}",
@@ -140,7 +162,7 @@ unsafe extern "C" fn keyboard_callback(
             return event;
         }
 
-        if matches!(event_type, CGEventType::KeyDown) && keycode == bindings.grid_key {
+        if is_first_keydown && keycode == bindings.grid_key {
             // SAFETY: event is provided by Quartz for this callback invocation.
             let cursor_point = unsafe { CGEventGetLocation(event) };
             let display = display_for_point(cursor_point);
@@ -154,7 +176,7 @@ unsafe extern "C" fn keyboard_callback(
         }
 
         if state.grid.is_active() {
-            if matches!(event_type, CGEventType::KeyDown) {
+            if is_first_keydown {
                 if keycode == bindings.confirm_key {
                     if let Some(final_bounds) = state.grid.confirm() {
                         let (target_x, target_y) = final_bounds.center();
@@ -180,7 +202,7 @@ unsafe extern "C" fn keyboard_callback(
             return ptr::null_mut();
         }
 
-        if matches!(event_type, CGEventType::KeyDown) {
+        if is_key_down {
             let move_step = movement_step(flags, bindings);
             let scroll_step = scroll_step(flags, bindings);
             match keycode {
@@ -209,10 +231,24 @@ unsafe extern "C" fn keyboard_callback(
                     state.enigo.mouse_scroll_x(scroll_step);
                 }
                 key if key == bindings.left_click => {
-                    state.enigo.mouse_click(MouseButton::Left);
+                    if is_first_keydown {
+                        state.enigo.mouse_click(MouseButton::Left);
+                    }
                 }
                 key if key == bindings.right_click => {
-                    state.enigo.mouse_click(MouseButton::Right);
+                    if is_first_keydown {
+                        state.enigo.mouse_click(MouseButton::Right);
+                    }
+                }
+                key if key == bindings.drag_toggle => {
+                    if is_first_keydown {
+                        if state.drag_active {
+                            state.enigo.mouse_up(MouseButton::Left);
+                        } else {
+                            state.enigo.mouse_down(MouseButton::Left);
+                        }
+                        state.drag_active = !state.drag_active;
+                    }
                 }
                 _ => {}
             }
