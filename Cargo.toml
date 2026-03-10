@@ -10,10 +10,16 @@ readme = "README.md"
 keywords = ["mouse", "keyboard", "vim", "productivity"]
 categories = ["command-line-utilities"]
 
+[features]
+# Declared to satisfy legacy objc/cocoa macro cfg checks on newer Rust toolchains.
+cargo-clippy = []
+
 [dependencies]
 core-graphics = "0.23"
 core-foundation = "0.9"
 enigo = "0.1"
+cocoa = "0.25"
+objc = "0.2"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 dirs = "5"

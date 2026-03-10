@@ -5,6 +5,7 @@ pub struct RecursiveGrid {
     active: bool,
     current_bounds: Option<GridBounds>,
     rendered_bounds: Option<GridBounds>,
+    depth: usize,
 }
 
 impl RecursiveGrid {
@@ -13,6 +14,7 @@ impl RecursiveGrid {
             active: false,
             current_bounds: None,
             rendered_bounds: None,
+            depth: 0,
         }
     }
 
@@ -22,6 +24,7 @@ impl RecursiveGrid {
 
     pub fn start(&mut self, full_display_bounds: GridBounds) {
         self.active = true;
+        self.depth = 0;
         self.current_bounds = Some(full_display_bounds);
         self.render_overlay(full_display_bounds);
     }
@@ -33,6 +36,7 @@ impl RecursiveGrid {
 
         let current = self.current_bounds?;
         let next = current.subdivide(row, col);
+        self.depth += 1;
         self.current_bounds = Some(next);
         self.render_overlay(next);
         Some(next)
@@ -45,6 +49,7 @@ impl RecursiveGrid {
 
         self.active = false;
         self.rendered_bounds = None;
+        self.depth = 0;
         self.current_bounds.take()
     }
 
@@ -52,6 +57,15 @@ impl RecursiveGrid {
         self.active = false;
         self.current_bounds = None;
         self.rendered_bounds = None;
+        self.depth = 0;
+    }
+
+    pub fn render_state(&self) -> Option<(GridBounds, usize)> {
+        if !self.active {
+            return None;
+        }
+
+        self.rendered_bounds.map(|bounds| (bounds, self.depth))
     }
 
     fn render_overlay(&mut self, bounds: GridBounds) {

@@ -1,9 +1,10 @@
 mod config;
 mod grid;
+mod overlay;
 
 use config::{KeyBindings, Modifier};
 use core_foundation::mach_port::CFMachPortRef;
-use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoopSourceRef};
+use core_foundation::runloop::{CFRunLoopSourceRef, kCFRunLoopCommonModes};
 use core_graphics::display::{CGDirectDisplayID, CGDisplay};
 use core_graphics::event::{
     CGEventField, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement, CGEventTapProxy,
@@ -14,6 +15,7 @@ use core_graphics::sys::CGEventRef;
 use enigo::{Enigo, MouseButton, MouseControllable};
 use grid::bounds::GridBounds;
 use grid::recursive::RecursiveGrid;
+use overlay::Overlay;
 
 use std::cell::RefCell;
 use std::ffi::c_void;
@@ -50,6 +52,7 @@ struct AppState {
     enigo: Enigo,
     mouse_mode: bool,
     grid: RecursiveGrid,
+    overlay: Overlay,
 }
 
 impl AppState {
@@ -58,6 +61,7 @@ impl AppState {
             enigo: Enigo::new(),
             mouse_mode: false,
             grid: RecursiveGrid::new(),
+            overlay: Overlay::new(),
         }
     }
 }
@@ -191,12 +195,15 @@ unsafe extern "C" fn keyboard_callback(
 
     APP_STATE.with(|cell| {
         let mut state = cell.borrow_mut();
-        let bindings = *KEY_BINDINGS.get().expect("key bindings must be initialized");
+        let bindings = *KEY_BINDINGS
+            .get()
+            .expect("key bindings must be initialized");
 
         if keycode == KEYCODE_F8 && matches!(event_type, CGEventType::KeyDown) {
             state.mouse_mode = !state.mouse_mode;
             if !state.mouse_mode {
                 state.grid.cancel();
+                state.overlay.hide();
             }
             eprintln!(
                 "mouse mode: {}",
@@ -214,6 +221,9 @@ unsafe extern "C" fn keyboard_callback(
             let cursor_point = unsafe { CGEventGetLocation(event) };
             let display = display_for_point(cursor_point);
             state.grid.start(GridBounds::from_display(display));
+            if let Some((bounds, depth)) = state.grid.render_state() {
+                state.overlay.show_or_update(bounds, depth);
+            }
             return ptr::null_mut();
         }
 
@@ -224,16 +234,21 @@ unsafe extern "C" fn keyboard_callback(
                         let (target_x, target_y) = final_bounds.center();
                         state.enigo.mouse_move_to(target_x, target_y);
                     }
+                    state.overlay.hide();
                     return ptr::null_mut();
                 }
 
                 if keycode == KEYCODE_ESCAPE {
                     state.grid.cancel();
+                    state.overlay.hide();
                     return ptr::null_mut();
                 }
 
                 if let Some((row, col)) = grid_cell_for_keycode(keycode) {
                     state.grid.zoom_into_cell(row, col);
+                    if let Some((bounds, depth)) = state.grid.render_state() {
+                        state.overlay.show_or_update(bounds, depth);
+                    }
                 }
             }
             return ptr::null_mut();
