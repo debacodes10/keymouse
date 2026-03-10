@@ -7,6 +7,12 @@ movement_down = "j"
 movement_left = "h"
 movement_right = "l"
 
+# Scroll keys
+scroll_up = "u"
+scroll_down = "n"
+scroll_left = "b"
+scroll_right = "m"
+
 # Grid mode controls
 grid_key = ";"
 confirm_key = "enter"

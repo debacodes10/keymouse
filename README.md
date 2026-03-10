@@ -10,6 +10,7 @@ Control your mouse on macOS with fast, Vim-style keyboard navigation.
 
 - Move the cursor with **H J K L** (normal speed)
 - Hold **Shift** for fast movement, **Option/Alt** for slow movement
+- Scroll with **U N B M** (up/down/left/right)
 - Trigger mouse clicks from the keyboard (`F` for left click, `D` for right click)
 - Jump the cursor with a recursive 3x3 grid targeting system
 - Translucent on-screen grid overlay with cell labels (`Q W E / A S D / Z X C`)
@@ -23,6 +24,7 @@ Control your mouse on macOS with fast, Vim-style keyboard navigation.
 - Press **F8** to toggle mouse mode on or off.
 - In mouse mode, use **H J K L** to move the cursor.
 - Hold **Shift** while moving for fast steps, or **Option/Alt** for slow steps.
+- Use **U / N / B / M** to scroll up/down/left/right.
 - Press **F** for left click, **D** for right click.
 - Press **;** to open jump grid mode (overlay appears on the active display).
 - Press grid keys (`QWE / ASD / ZXC`) to zoom recursively into cells.
@@ -104,6 +106,9 @@ Grant macOS permissions to the app launching Keymouse (usually your terminal):
 | H J K L            | Move cursor (normal speed)                                      |
 | Shift + H/J/K/L    | Move cursor fast                                                |
 | Option + H/J/K/L   | Move cursor slow                                                |
+| U N B M            | Scroll up/down/left/right                                       |
+| Shift + U/N/B/M    | Scroll fast                                                     |
+| Option + U/N/B/M   | Scroll slow                                                     |
 | F                  | Left click                                                      |
 | D                  | Right click                                                     |
 | ;                  | Open jump grid overlay on active display                        |
@@ -128,6 +133,11 @@ movement_up = "k"
 movement_down = "j"
 movement_left = "h"
 movement_right = "l"
+
+scroll_up = "u"
+scroll_down = "n"
+scroll_left = "b"
+scroll_right = "m"
 
 grid_key = ";"
 confirm_key = "enter"

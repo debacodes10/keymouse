@@ -10,6 +10,10 @@ pub struct Config {
     pub movement_down: String,
     pub movement_left: String,
     pub movement_right: String,
+    pub scroll_up: String,
+    pub scroll_down: String,
+    pub scroll_left: String,
+    pub scroll_right: String,
     pub grid_key: String,
     pub confirm_key: String,
     pub left_click: String,
@@ -25,6 +29,10 @@ impl Default for Config {
             movement_down: "j".to_string(),
             movement_left: "h".to_string(),
             movement_right: "l".to_string(),
+            scroll_up: "u".to_string(),
+            scroll_down: "n".to_string(),
+            scroll_left: "b".to_string(),
+            scroll_right: "m".to_string(),
             grid_key: ";".to_string(),
             confirm_key: "enter".to_string(),
             left_click: "f".to_string(),
@@ -41,6 +49,11 @@ impl Config {
 movement_down = "j"
 movement_left = "h"
 movement_right = "l"
+
+scroll_up = "u"
+scroll_down = "n"
+scroll_left = "b"
+scroll_right = "m"
 
 grid_key = ";"
 confirm_key = "enter"
@@ -75,6 +88,10 @@ pub struct KeyBindings {
     pub movement_down: i64,
     pub movement_left: i64,
     pub movement_right: i64,
+    pub scroll_up: i64,
+    pub scroll_down: i64,
+    pub scroll_left: i64,
+    pub scroll_right: i64,
     pub grid_key: i64,
     pub confirm_key: i64,
     pub left_click: i64,
@@ -92,6 +109,10 @@ impl KeyBindings {
             movement_down: keycode_i64(&config.movement_down, &defaults.movement_down),
             movement_left: keycode_i64(&config.movement_left, &defaults.movement_left),
             movement_right: keycode_i64(&config.movement_right, &defaults.movement_right),
+            scroll_up: keycode_i64(&config.scroll_up, &defaults.scroll_up),
+            scroll_down: keycode_i64(&config.scroll_down, &defaults.scroll_down),
+            scroll_left: keycode_i64(&config.scroll_left, &defaults.scroll_left),
+            scroll_right: keycode_i64(&config.scroll_right, &defaults.scroll_right),
             grid_key: keycode_i64(&config.grid_key, &defaults.grid_key),
             confirm_key: keycode_i64(&config.confirm_key, &defaults.confirm_key),
             left_click: keycode_i64(&config.left_click, &defaults.left_click),
@@ -110,10 +131,14 @@ pub fn key_from_string(key: &str) -> CGKeyCode {
         "f" => 3,
         "g" => 5,
         "h" => 4,
+        "b" => 11,
         "j" => 38,
         "k" => 40,
         "l" => 37,
+        "m" => 46,
+        "n" => 45,
         "q" => 12,
+        "u" => 32,
         "w" => 13,
         "e" => 14,
         "z" => 6,

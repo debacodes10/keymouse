@@ -19,6 +19,9 @@ const EVENT_FLAG_MASK_OPTION: u64 = 1 << 19;
 const NORMAL_SPEED: i32 = 20;
 const FAST_SPEED: i32 = 120;
 const SLOW_SPEED: i32 = 5;
+const NORMAL_SCROLL: i32 = 8;
+const FAST_SCROLL: i32 = 24;
+const SLOW_SCROLL: i32 = 1;
 
 pub fn grid_cell_for_keycode(keycode: i64) -> Option<(i32, i32)> {
     match keycode {
@@ -45,6 +48,16 @@ pub fn movement_step(flags: u64, bindings: KeyBindings) -> i32 {
         SLOW_SPEED
     } else {
         NORMAL_SPEED
+    }
+}
+
+pub fn scroll_step(flags: u64, bindings: KeyBindings) -> i32 {
+    if modifier_active(flags, bindings.fast_modifier) {
+        FAST_SCROLL
+    } else if modifier_active(flags, bindings.slow_modifier) {
+        SLOW_SCROLL
+    } else {
+        NORMAL_SCROLL
     }
 }
 

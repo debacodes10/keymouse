@@ -2,7 +2,7 @@ use crate::config::{self, KeyBindings};
 use crate::grid::bounds::GridBounds;
 use crate::grid::recursive::RecursiveGrid;
 use crate::input::{
-    KEYCODE_ESCAPE, KEYCODE_F8, grid_cell_for_keycode, movement_step,
+    KEYCODE_ESCAPE, KEYCODE_F8, grid_cell_for_keycode, movement_step, scroll_step,
 };
 use crate::overlay::Overlay;
 use crate::platform::{
@@ -169,19 +169,32 @@ unsafe extern "C" fn keyboard_callback(
         }
 
         if matches!(event_type, CGEventType::KeyDown) {
-            let step = movement_step(flags, bindings);
+            let move_step = movement_step(flags, bindings);
+            let scroll_step = scroll_step(flags, bindings);
             match keycode {
                 key if key == bindings.movement_left => {
-                    state.enigo.mouse_move_relative(-step, 0);
+                    state.enigo.mouse_move_relative(-move_step, 0);
                 }
                 key if key == bindings.movement_down => {
-                    state.enigo.mouse_move_relative(0, step);
+                    state.enigo.mouse_move_relative(0, move_step);
                 }
                 key if key == bindings.movement_up => {
-                    state.enigo.mouse_move_relative(0, -step);
+                    state.enigo.mouse_move_relative(0, -move_step);
                 }
                 key if key == bindings.movement_right => {
-                    state.enigo.mouse_move_relative(step, 0);
+                    state.enigo.mouse_move_relative(move_step, 0);
+                }
+                key if key == bindings.scroll_up => {
+                    state.enigo.mouse_scroll_y(-scroll_step);
+                }
+                key if key == bindings.scroll_down => {
+                    state.enigo.mouse_scroll_y(scroll_step);
+                }
+                key if key == bindings.scroll_left => {
+                    state.enigo.mouse_scroll_x(-scroll_step);
+                }
+                key if key == bindings.scroll_right => {
+                    state.enigo.mouse_scroll_x(scroll_step);
                 }
                 key if key == bindings.left_click => {
                     state.enigo.mouse_click(MouseButton::Left);
