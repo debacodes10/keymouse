@@ -8,9 +8,12 @@ Control your mouse on macOS with fast, Vim-style keyboard navigation.
 
 ## Features
 
-- Move the cursor with **H J K L**
+- Move the cursor with **H J K L** (normal speed)
+- Hold **Shift** for fast movement, **Option/Alt** for slow movement
 - Trigger mouse clicks from the keyboard (`F` for left click, `D` for right click)
-- Jump the cursor with a 3x3 grid-based targeting system
+- Jump the cursor with a recursive 3x3 grid targeting system
+- Translucent on-screen grid overlay with cell labels (`Q W E / A S D / Z X C`)
+- Live overlay depth indicator while zooming (`Depth: 0`, `Depth: 1`, ...)
 - Multi-monitor aware cursor jumping
 - System-level keyboard interception using macOS `CGEventTap`
 - Built in **Rust** with low-level event handling
@@ -19,8 +22,12 @@ Control your mouse on macOS with fast, Vim-style keyboard navigation.
 
 - Press **F8** to toggle mouse mode on or off.
 - In mouse mode, use **H J K L** to move the cursor.
-- Press **;** to open jump grid mode.
-- Press one grid key (`QWE / ASD / ZXC`) to instantly move the cursor.
+- Hold **Shift** while moving for fast steps, or **Option/Alt** for slow steps.
+- Press **F** for left click, **D** for right click.
+- Press **;** to open jump grid mode (overlay appears on the active display).
+- Press grid keys (`QWE / ASD / ZXC`) to zoom recursively into cells.
+- Press **Enter** to confirm jump to the center of the selected cell.
+- Press **Esc** to cancel grid mode.
 
 ## Installation
 
@@ -91,13 +98,18 @@ Grant macOS permissions to the app launching Keymouse (usually your terminal):
 - `System Settings` -> `Privacy & Security` -> `Accessibility`
 - `System Settings` -> `Privacy & Security` -> `Input Monitoring`
 
-| Key     | Action            |
-| ------- | ----------------- |
-| F8      | Toggle mouse mode |
-| H J K L | Move cursor       |
-| F       | Left click        |
-| D       | Right click       |
-| ;       | Open jump grid    |
+| Key                | Action                                                          |
+| ------------------ | --------------------------------------------------------------- |
+| F8                 | Toggle mouse mode                                               |
+| H J K L            | Move cursor (normal speed)                                      |
+| Shift + H/J/K/L    | Move cursor fast                                                |
+| Option + H/J/K/L   | Move cursor slow                                                |
+| F                  | Left click                                                      |
+| D                  | Right click                                                     |
+| ;                  | Open jump grid overlay on active display                        |
+| Q/W/E/A/S/D/Z/X/C  | Select grid cell and keep zooming in                            |
+| Enter              | Confirm grid selection and move cursor to selected cell center  |
+| Esc                | Cancel grid mode                                                |
 
 ## Configuration
 
