@@ -1,9 +1,7 @@
 use crate::config::{self, KeyBindings};
 use crate::grid::bounds::GridBounds;
 use crate::grid::recursive::RecursiveGrid;
-use crate::input::{
-    KEYCODE_ESCAPE, KEYCODE_F8, grid_cell_for_keycode, movement_step, scroll_step,
-};
+use crate::input::{KEYCODE_ESCAPE, KEYCODE_F8, grid_cell_for_keycode, movement_step, scroll_step};
 use crate::overlay::Overlay;
 use crate::platform::{
     CFMachPortCreateRunLoopSource, CFRunLoopAddSource, CFRunLoopGetCurrent, CFRunLoopRun,
@@ -23,6 +21,7 @@ use std::sync::OnceLock;
 use std::thread_local;
 
 static KEY_BINDINGS: OnceLock<KeyBindings> = OnceLock::new();
+static EVENT_TAP: OnceLock<usize> = OnceLock::new();
 
 struct AppState {
     enigo: Enigo,
@@ -69,6 +68,7 @@ pub fn run() {
             );
             std::process::exit(1);
         }
+        let _ = EVENT_TAP.set(tap as usize);
 
         let run_loop_source = CFMachPortCreateRunLoopSource(ptr::null(), tap, 0);
         if run_loop_source.is_null() {
@@ -95,6 +95,18 @@ unsafe extern "C" fn keyboard_callback(
     event: CGEventRef,
     _user_info: *mut c_void,
 ) -> CGEventRef {
+    if matches!(
+        event_type,
+        CGEventType::TapDisabledByTimeout | CGEventType::TapDisabledByUserInput
+    ) {
+        if let Some(tap) = EVENT_TAP.get() {
+            // SAFETY: tap comes from successful CGEventTapCreate and remains valid
+            // for the lifetime of the process run loop.
+            unsafe { CGEventTapEnable(*tap as *mut _, true) };
+        }
+        return event;
+    }
+
     match event_type {
         CGEventType::KeyDown | CGEventType::KeyUp => {}
         _ => return event,

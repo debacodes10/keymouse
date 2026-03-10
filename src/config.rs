@@ -123,48 +123,47 @@ impl KeyBindings {
     }
 }
 
-pub fn key_from_string(key: &str) -> CGKeyCode {
+pub fn key_from_string(key: &str) -> Option<CGKeyCode> {
     match key.trim().to_ascii_lowercase().as_str() {
-        "a" => 0,
-        "s" => 1,
-        "d" => 2,
-        "f" => 3,
-        "g" => 5,
-        "h" => 4,
-        "b" => 11,
-        "j" => 38,
-        "k" => 40,
-        "l" => 37,
-        "m" => 46,
-        "n" => 45,
-        "q" => 12,
-        "u" => 32,
-        "w" => 13,
-        "e" => 14,
-        "z" => 6,
-        "x" => 7,
-        "c" => 8,
-        ";" | "semicolon" => 41,
-        "enter" | "return" => 36,
-        "escape" | "esc" => 53,
-        "f8" => 100,
+        "a" => Some(0),
+        "s" => Some(1),
+        "d" => Some(2),
+        "f" => Some(3),
+        "g" => Some(5),
+        "h" => Some(4),
+        "b" => Some(11),
+        "j" => Some(38),
+        "k" => Some(40),
+        "l" => Some(37),
+        "m" => Some(46),
+        "n" => Some(45),
+        "q" => Some(12),
+        "u" => Some(32),
+        "w" => Some(13),
+        "e" => Some(14),
+        "z" => Some(6),
+        "x" => Some(7),
+        "c" => Some(8),
+        ";" | "semicolon" => Some(41),
+        "enter" | "return" => Some(36),
+        "escape" | "esc" => Some(53),
+        "f8" => Some(100),
         // Modifiers are represented as flags, but we still accept them here.
-        "shift" => 56,
-        "option" | "alt" => 58,
-        _ => 0,
+        "shift" => Some(56),
+        "option" | "alt" => Some(58),
+        _ => None,
     }
 }
 
 pub fn load_config() -> Config {
     let path = config_path();
 
-    if path.exists() {
-        if let Ok(raw) = fs::read_to_string(&path)
-            && let Ok(config) = toml::from_str::<Config>(&raw)
-        {
-            eprintln!("Loaded Keymouse config from ~/.config/keymouse/config.toml");
-            return config;
-        }
+    if path.exists()
+        && let Ok(raw) = fs::read_to_string(&path)
+        && let Ok(config) = toml::from_str::<Config>(&raw)
+    {
+        eprintln!("Loaded Keymouse config from ~/.config/keymouse/config.toml");
+        return config;
     }
 
     let default = Config::default();
@@ -192,10 +191,24 @@ fn maybe_write_example_config(path: &PathBuf) {
 }
 
 fn keycode_i64(value: &str, fallback: &str) -> i64 {
-    let code = key_from_string(value);
-    if code != 0 {
+    if let Some(code) = key_from_string(value) {
         return i64::from(code);
     }
 
-    i64::from(key_from_string(fallback))
+    i64::from(key_from_string(fallback).unwrap_or_default())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{key_from_string, keycode_i64};
+
+    #[test]
+    fn parses_a_keycode_without_treating_it_as_invalid() {
+        assert_eq!(key_from_string("a"), Some(0));
+    }
+
+    #[test]
+    fn falls_back_for_unknown_key_names() {
+        assert_eq!(keycode_i64("unknown", "k"), 40);
+    }
 }

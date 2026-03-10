@@ -73,3 +73,56 @@ impl RecursiveGrid {
         self.rendered_bounds = Some(bounds);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{GridBounds, RecursiveGrid};
+
+    fn root_bounds() -> GridBounds {
+        GridBounds {
+            x: 0.0,
+            y: 0.0,
+            width: 300.0,
+            height: 300.0,
+        }
+    }
+
+    #[test]
+    fn start_and_zoom_updates_render_state_and_depth() {
+        let mut grid = RecursiveGrid::new();
+        grid.start(root_bounds());
+        assert!(grid.is_active());
+        assert_eq!(grid.render_state().map(|(_, depth)| depth), Some(0));
+
+        let next = grid.zoom_into_cell(0, 0).expect("zoom should succeed");
+        let (rendered, depth) = grid.render_state().expect("render state should exist");
+        assert_eq!(depth, 1);
+        assert_eq!(rendered.x, next.x);
+        assert_eq!(rendered.y, next.y);
+    }
+
+    #[test]
+    fn confirm_returns_current_bounds_and_deactivates_grid() {
+        let mut grid = RecursiveGrid::new();
+        grid.start(root_bounds());
+        let _ = grid.zoom_into_cell(1, 2);
+
+        let confirmed = grid.confirm().expect("confirm should return bounds");
+        assert!(!grid.is_active());
+        assert!(grid.render_state().is_none());
+        assert_eq!(confirmed.width, 100.0);
+        assert_eq!(confirmed.height, 100.0);
+    }
+
+    #[test]
+    fn cancel_resets_all_state() {
+        let mut grid = RecursiveGrid::new();
+        grid.start(root_bounds());
+        let _ = grid.zoom_into_cell(2, 1);
+        grid.cancel();
+
+        assert!(!grid.is_active());
+        assert!(grid.render_state().is_none());
+        assert!(grid.confirm().is_none());
+    }
+}

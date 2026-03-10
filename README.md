@@ -8,28 +8,15 @@ Control your mouse on macOS with fast, Vim-style keyboard navigation.
 
 ## Features
 
-- Move the cursor with **H J K L** (normal speed)
-- Hold **Shift** for fast movement, **Option/Alt** for slow movement
-- Scroll with **U N B M** (up/down/left/right)
-- Trigger mouse clicks from the keyboard (`F` for left click, `D` for right click)
-- Jump the cursor with a recursive 3x3 grid targeting system
-- Translucent on-screen grid overlay with cell labels (`Q W E / A S D / Z X C`)
-- Live overlay depth indicator while zooming (`Depth: 0`, `Depth: 1`, ...)
-- Multi-monitor aware cursor jumping
-- System-level keyboard interception using macOS `CGEventTap`
-- Built in **Rust** with low-level event handling
-
-## How It Works
-
-- Press **F8** to toggle mouse mode on or off.
-- In mouse mode, use **H J K L** to move the cursor.
-- Hold **Shift** while moving for fast steps, or **Option/Alt** for slow steps.
-- Use **U / N / B / M** to scroll up/down/left/right.
-- Press **F** for left click, **D** for right click.
-- Press **;** to open jump grid mode (overlay appears on the active display).
-- Press grid keys (`QWE / ASD / ZXC`) to zoom recursively into cells.
-- Press **Enter** to confirm jump to the center of the selected cell.
-- Press **Esc** to cancel grid mode.
+- Global keyboard-driven mouse control on macOS (`CGEventTap`)
+- Toggleable mouse mode (`F8`) so normal typing is unaffected when off
+- Cursor movement with configurable keys (defaults: `H J K L`)
+- Speed modifiers for movement/scroll (defaults: `Shift` fast, `Option/Alt` slow)
+- Scroll control with configurable keys (defaults: `U N B M`)
+- Left/right click from keyboard (defaults: `F` / `D`)
+- Recursive 3x3 jump grid with translucent overlay and depth indicator
+- Multi-monitor aware grid targeting on the display under the cursor
+- Automatic event-tap re-enable if macOS temporarily disables the tap
 
 ## Installation
 
@@ -83,38 +70,65 @@ target/release/keymouse
 
 ## Usage
 
-Start the tool:
+### 1) Start Keymouse
 
 ```bash
 keymouse
 ```
 
-If you built from source, run:
+If you built from source:
 
 ```bash
 ./target/release/keymouse
 ```
 
-Grant macOS permissions to the app launching Keymouse (usually your terminal):
+### 2) Grant macOS permissions
+
+Grant permissions to the app that launches Keymouse (usually Terminal/iTerm):
 
 - `System Settings` -> `Privacy & Security` -> `Accessibility`
 - `System Settings` -> `Privacy & Security` -> `Input Monitoring`
 
-| Key                | Action                                                          |
-| ------------------ | --------------------------------------------------------------- |
-| F8                 | Toggle mouse mode                                               |
-| H J K L            | Move cursor (normal speed)                                      |
-| Shift + H/J/K/L    | Move cursor fast                                                |
-| Option + H/J/K/L   | Move cursor slow                                                |
-| U N B M            | Scroll up/down/left/right                                       |
-| Shift + U/N/B/M    | Scroll fast                                                     |
-| Option + U/N/B/M   | Scroll slow                                                     |
-| F                  | Left click                                                      |
-| D                  | Right click                                                     |
-| ;                  | Open jump grid overlay on active display                        |
-| Q/W/E/A/S/D/Z/X/C  | Select grid cell and keep zooming in                            |
-| Enter              | Confirm grid selection and move cursor to selected cell center  |
-| Esc                | Cancel grid mode                                                |
+### 3) Toggle mouse mode
+
+- Press `F8` to turn mouse mode on/off.
+- When mouse mode is **off**, all keys behave normally.
+- When mouse mode is **on**, keydown/keyup events are intercepted by Keymouse.
+
+### 4) Control the pointer
+
+- Move: `H J K L`
+- Scroll: `U N B M`
+- Click: `F` (left), `D` (right)
+- Modifiers: `Shift` = fast, `Option/Alt` = slow
+
+### 5) Use jump grid mode
+
+- Press `;` (default `grid_key`) to show the 3x3 grid on the display under the cursor.
+- Select cells with `Q/W/E`, `A/S/D`, `Z/X/C` to zoom recursively.
+- Optional alternates in grid mode: `F` maps to middle-left, `G` maps to center.
+- Press `Enter` to move cursor to the selected region center.
+- Press `Esc` to cancel grid mode.
+
+### Default keymap
+
+| Key | Action |
+| --- | --- |
+| `F8` | Toggle mouse mode |
+| `H J K L` | Move cursor |
+| `Shift` + move/scroll keys | Fast movement/scroll |
+| `Option` + move/scroll keys | Slow movement/scroll |
+| `U N B M` | Scroll up/down/left/right |
+| `F` | Left click |
+| `D` | Right click |
+| `;` | Enter grid mode |
+| `Q/W/E/A/S/D/Z/X/C` | Select grid cell recursively |
+| `Enter` | Confirm grid jump |
+| `Esc` | Cancel grid mode |
+
+### Quit
+
+Use `Ctrl+C` in the terminal running Keymouse.
 
 ## Configuration
 
@@ -149,6 +163,19 @@ fast_modifier = "shift"
 slow_modifier = "option"
 ```
 
+Supported key names for bindings are currently:
+
+- Letters used by default (`a b c d e f g h j k l m n q s u w x z`)
+- `;` (or `"semicolon"`), `"enter"`/`"return"`, `"escape"`/`"esc"`, `"f8"`
+- Modifiers: `"shift"` and `"option"`/`"alt"` (for modifier fields)
+
+Unknown key names fall back to default values.
+
+## Troubleshooting
+
+- If Keymouse exits with an event tap error, re-check Accessibility and Input Monitoring permissions for the launching app.
+- If keyboard control stops after long inactivity or heavy system load, macOS may have disabled the tap; Keymouse now attempts to re-enable it automatically.
+
 ## Roadmap
 
 - [x] Vim-style cursor movement
@@ -165,4 +192,4 @@ Contributions, suggestions, and feature requests are welcome. Open an issue to d
 
 ## License
 
-This repository does not currently include a license file.
+MIT. See [`LICENSE`](LICENSE).
