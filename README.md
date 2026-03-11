@@ -128,6 +128,12 @@ Validate your config without starting the event loop:
 keymouse --check-config
 ```
 
+See all available commands anytime:
+
+```bash
+keymouse --help
+```
+
 Run without menu bar UI (legacy headless mode):
 
 ```bash

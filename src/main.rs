@@ -137,6 +137,25 @@ fn main() {
 
 fn print_usage() {
     eprintln!(
-        "Usage: keymouse [--install-app|--uninstall-app|--start|--stop|--restart|--check-config|--headless]"
+        "Keymouse - macOS keyboard mouse control
+
+Usage:
+  keymouse                       Start menu bar app
+  keymouse [command]
+
+Commands:
+  --install-app      Install ~/Applications/Keymouse.app for Spotlight/Finder launch
+  --uninstall-app    Remove ~/Applications/Keymouse.app
+  --start            Start as a managed background process
+  --stop             Stop the managed background process
+  --restart          Restart the managed background process
+  --check-config     Validate config file and exit
+  --headless         Run without menu bar UI
+  --help, -h         Show this help
+
+Examples:
+  keymouse --install-app
+  keymouse --start
+  keymouse --check-config"
     );
 }
