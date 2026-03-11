@@ -81,6 +81,12 @@ target/release/keymouse
 keymouse
 ```
 
+Run as a managed background process (recommended until `.app` bundle support is added):
+
+```bash
+keymouse --start
+```
+
 If you built from source:
 
 ```bash
@@ -97,6 +103,18 @@ Run without menu bar UI (legacy headless mode):
 
 ```bash
 keymouse --headless
+```
+
+Stop the managed background process:
+
+```bash
+keymouse --stop
+```
+
+Restart the managed background process:
+
+```bash
+keymouse --restart
 ```
 
 ### 2) Grant macOS permissions
@@ -154,6 +172,12 @@ Grant permissions to the app that launches Keymouse (usually Terminal/iTerm):
 ### Quit
 
 Use `Ctrl+C` in the terminal running Keymouse.
+
+If started with `--start`, stop it with:
+
+```bash
+keymouse --stop
+```
 
 ## Configuration
 
