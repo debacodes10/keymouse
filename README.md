@@ -246,6 +246,7 @@ Invalid or conflicting config values now produce startup validation errors.
 
 - If Keymouse exits with an event tap error, re-check Accessibility and Input Monitoring permissions for the launching app.
 - If keyboard control stops after long inactivity or heavy system load, macOS may have disabled the tap; Keymouse now attempts to re-enable it automatically.
+- If `Keymouse.app` asks for Rosetta on Apple Silicon, reinstall Keymouse from a native (non-Rosetta) terminal, then rerun `keymouse --install-app`.
 
 ## Roadmap
 

@@ -10,8 +10,7 @@ const LAUNCHER_NAME: &str = "Keymouse";
 
 pub fn install_app() -> Result<String, String> {
     let app_path = app_bundle_path()?;
-    let launcher_target = std::env::current_exe()
-        .map_err(|error| format!("Failed to resolve current executable: {error}"))?;
+    let launcher_target = resolve_launcher_target()?;
 
     if app_path.exists() {
         if should_prompt()
@@ -81,6 +80,33 @@ fn app_bundle_path() -> Result<PathBuf, String> {
     Ok(home.join("Applications").join(format!("{APP_NAME}.app")))
 }
 
+fn resolve_launcher_target() -> Result<PathBuf, String> {
+    let current = std::env::current_exe()
+        .map_err(|error| format!("Failed to resolve current executable: {error}"))?;
+
+    if !is_arm64_hardware() {
+        return Ok(current);
+    }
+
+    if binary_supports_arm64(&current) {
+        return Ok(current);
+    }
+
+    let cargo_bin = cargo_bin_keymouse_path()?;
+    if binary_supports_arm64(&cargo_bin) {
+        return Ok(cargo_bin);
+    }
+
+    Err(
+        "This Mac is Apple Silicon, but the current keymouse binary is not arm64.\n\
+Run keymouse from a native (non-Rosetta) terminal and reinstall it:\n\
+  cargo install keymouse\n\
+Then run:\n\
+  keymouse --install-app"
+            .to_string(),
+    )
+}
+
 fn render_info_plist() -> String {
     let version = env!("CARGO_PKG_VERSION");
     format!(
@@ -142,6 +168,41 @@ fn refresh_launch_services(app_path: &Path) -> Result<(), String> {
                 Err("lsregister exited with non-zero status".to_string())
             }
         })
+}
+
+fn cargo_bin_keymouse_path() -> Result<PathBuf, String> {
+    let home = dirs::home_dir().ok_or_else(|| "Failed to resolve home directory.".to_string())?;
+    Ok(home.join(".cargo").join("bin").join("keymouse"))
+}
+
+fn is_arm64_hardware() -> bool {
+    let output = Command::new("sysctl")
+        .args(["-n", "hw.optional.arm64"])
+        .output();
+
+    let Ok(output) = output else {
+        return false;
+    };
+    if !output.status.success() {
+        return false;
+    }
+
+    String::from_utf8_lossy(&output.stdout).trim() == "1"
+}
+
+fn binary_supports_arm64(path: &Path) -> bool {
+    let output = Command::new("lipo").args(["-archs"]).arg(path).output();
+
+    let Ok(output) = output else {
+        return false;
+    };
+    if !output.status.success() {
+        return false;
+    }
+
+    String::from_utf8_lossy(&output.stdout)
+        .split_whitespace()
+        .any(|arch| arch == "arm64")
 }
 
 fn confirm(prompt: &str) -> Result<bool, String> {
