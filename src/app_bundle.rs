@@ -38,10 +38,14 @@ pub fn install_app() -> Result<String, String> {
     fs::write(&plist_path, render_info_plist())
         .map_err(|error| format!("Failed to write {}: {error}", plist_path.display()))?;
 
-    let launcher_path = macos_dir.join(LAUNCHER_NAME);
-    fs::write(&launcher_path, render_launcher(&launcher_target))
-        .map_err(|error| format!("Failed to write {}: {error}", launcher_path.display()))?;
-    set_executable(&launcher_path)?;
+    let bundled_executable_path = macos_dir.join(LAUNCHER_NAME);
+    fs::copy(&launcher_target, &bundled_executable_path).map_err(|error| {
+        format!(
+            "Failed to copy executable to {}: {error}",
+            bundled_executable_path.display()
+        )
+    })?;
+    set_executable(&bundled_executable_path)?;
 
     let lsregister_notice = match refresh_launch_services(&app_path) {
         Ok(()) => "Spotlight indexing refresh requested.",
@@ -136,11 +140,6 @@ fn render_info_plist() -> String {
     )
 }
 
-fn render_launcher(target: &Path) -> String {
-    let escaped = shell_single_quote(target.to_string_lossy().as_ref());
-    format!("#!/bin/sh\nexec '{}' \"$@\"\n", escaped)
-}
-
 fn set_executable(path: &Path) -> Result<(), String> {
     let mut perms = fs::metadata(path)
         .map_err(|error| format!("Failed to read {} metadata: {error}", path.display()))?
@@ -223,8 +222,4 @@ fn confirm(prompt: &str) -> Result<bool, String> {
 fn should_prompt() -> bool {
     // SAFETY: libc::isatty only reads descriptor properties.
     unsafe { libc::isatty(libc::STDIN_FILENO) == 1 && libc::isatty(libc::STDOUT_FILENO) == 1 }
-}
-
-fn shell_single_quote(value: &str) -> String {
-    value.replace('\'', "'\"'\"'")
 }
