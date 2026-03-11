@@ -1,6 +1,6 @@
 [package]
 name = "keymouse"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2024"
 description = "Control your mouse using Vim-style keyboard navigation"
 license = "MIT"
