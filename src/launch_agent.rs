@@ -5,7 +5,16 @@ use std::process::Command;
 const LABEL: &str = "com.debacodes10.keymouse";
 
 pub fn is_enabled() -> bool {
-    plist_path().exists()
+    if !plist_path().exists() {
+        return false;
+    }
+
+    let service = service_target();
+    Command::new("launchctl")
+        .args(["print", &service])
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
 }
 
 pub fn set_enabled(enabled: bool) -> Result<bool, String> {
@@ -75,6 +84,10 @@ fn gui_domain() -> String {
             unsafe { libc::getuid() }
         });
     format!("gui/{uid}")
+}
+
+fn service_target() -> String {
+    format!("{}/{}", gui_domain(), LABEL)
 }
 
 fn launchctl(args: &[&str]) -> Result<(), String> {

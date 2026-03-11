@@ -1,7 +1,7 @@
 use crate::config::{self, KeyBindings};
 use crate::grid::bounds::GridBounds;
 use crate::grid::recursive::RecursiveGrid;
-use crate::input::{KEYCODE_ESCAPE, KEYCODE_F8, grid_cell_for_keycode, movement_step, scroll_step};
+use crate::input::{KEYCODE_ESCAPE, grid_cell_for_keycode, movement_step, scroll_step};
 use crate::overlay::Overlay;
 use crate::platform::{
     CFMachPortCreateRunLoopSource, CFRunLoopAddSource, CFRunLoopGetCurrent, CFRunLoopRun,
@@ -78,8 +78,10 @@ pub fn initialize() {
     }
 
     let config = config::load_config();
+    let toggle_key_name = config.toggle_key.trim().to_ascii_lowercase();
     let bindings = KeyBindings::from_config(&config);
     let _ = KEY_BINDINGS.set(bindings);
+    eprintln!("Toggle key binding: {}", toggle_key_name);
 
     let mask = event_mask(&[CGEventType::KeyDown, CGEventType::KeyUp]);
 
@@ -120,7 +122,7 @@ pub fn initialize() {
 
 pub fn run_headless() {
     initialize();
-    eprintln!("keymouse running (headless). Press F8 to toggle mouse mode.");
+    eprintln!("keymouse running (headless). Press configured toggle key to toggle mouse mode.");
     // SAFETY: Run loop is initialized and ready to process event-tap callbacks.
     unsafe { CFRunLoopRun() }
 }
@@ -185,7 +187,7 @@ unsafe extern "C" fn keyboard_callback(
             false
         };
 
-        if keycode == KEYCODE_F8 && is_first_keydown {
+        if keycode == bindings.toggle_key && is_first_keydown {
             let next = !state.mouse_mode;
             apply_mouse_mode_state(&mut state, next);
             eprintln!("mouse mode: {}", if next { "on" } else { "off" });

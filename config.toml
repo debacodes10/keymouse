@@ -1,8 +1,7 @@
 # Keymouse configuration example
-# Copy this to ~/Library/Application Support/keymouse/config.toml and edit values.
+# Copy this to ~/.config/keymouse/config.toml and edit values.
 
 # Toggle mouse mode on/off
-# Supports function keys like "f1"..."f12"
 toggle_key = "f1"
 
 # Cursor movement keys (single key names)

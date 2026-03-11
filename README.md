@@ -11,7 +11,7 @@ Control your mouse on macOS with fast, Vim-style keyboard navigation.
 - Global keyboard-driven mouse control on macOS (`CGEventTap`)
 - Menu bar app mode (no dedicated terminal required)
 - Start-at-login toggle from menu bar (`LaunchAgent`)
-- Toggleable mouse mode (`F8`) so normal typing is unaffected when off
+- Toggleable mouse mode (configurable `toggle_key`, default: `F8`) so normal typing is unaffected when off
 - Cursor movement with configurable keys (defaults: `H J K L`)
 - Speed modifiers for movement/scroll (defaults: `Shift` fast, `Option/Alt` slow)
 - Scroll control with configurable keys (defaults: `U N B M`)
@@ -108,7 +108,7 @@ Grant permissions to the app that launches Keymouse (usually Terminal/iTerm):
 
 ### 3) Toggle mouse mode
 
-- Press `F8` to turn mouse mode on/off.
+- Press your configured `toggle_key` to turn mouse mode on/off (default: `F8`).
 - Or use the menu bar item: `KM` -> `Turn Mouse Mode On/Off`.
 - When mouse mode is **off**, all keys behave normally.
 - When mouse mode is **on**, keydown/keyup events are intercepted by Keymouse.
@@ -160,7 +160,7 @@ Use `Ctrl+C` in the terminal running Keymouse.
 Keymouse loads configuration from:
 
 ```text
-~/.config/keymouse/config.toml
+~/Library/Application Support/keymouse/config.toml
 ```
 
 If the file is missing, Keymouse uses built-in defaults. At startup, it also writes an example file to that path so you can customize bindings.
@@ -168,6 +168,8 @@ If the file is missing, Keymouse uses built-in defaults. At startup, it also wri
 Example `config.toml`:
 
 ```toml
+toggle_key = "f1"
+
 movement_up = "k"
 movement_down = "j"
 movement_left = "h"
@@ -192,7 +194,7 @@ slow_modifier = "option"
 Supported key names for bindings are currently:
 
 - Letters used by default (`a b c d e f g h j k l m n q s u v w x z`)
-- `;` (or `"semicolon"`), `"enter"`/`"return"`, `"escape"`/`"esc"`, `"f8"`
+- `;` (or `"semicolon"`), `"enter"`/`"return"`, `"escape"`/`"esc"`, function keys (`"f1"` ... `"f12"`)
 - Modifiers: `"shift"` and `"option"`/`"alt"` (for modifier fields)
 
 Invalid or conflicting config values now produce startup validation errors.

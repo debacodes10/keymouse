@@ -3,7 +3,6 @@ use crate::config::{KeyBindings, Modifier};
 pub const KEYCODE_D: i64 = 2;
 pub const KEYCODE_F: i64 = 3;
 pub const KEYCODE_G: i64 = 5;
-pub const KEYCODE_F8: i64 = 100;
 pub const KEYCODE_ESCAPE: i64 = 53;
 pub const KEYCODE_Q: i64 = 12;
 pub const KEYCODE_W: i64 = 13;

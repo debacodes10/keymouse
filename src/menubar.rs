@@ -152,7 +152,7 @@ pub fn run() {
 
         add_separator(menu);
         add_hint_item(menu, "Hints");
-        add_hint_item(menu, "F8: keyboard toggle");
+        add_hint_item(menu, "Use configured toggle key");
         add_hint_item(menu, "Hold H/J/K/L: move cursor");
         add_hint_item(menu, "V: toggle drag hold");
         add_hint_item(menu, "; then Q..C: grid jump");

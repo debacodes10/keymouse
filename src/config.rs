@@ -7,6 +7,7 @@ use std::path::PathBuf;
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 pub struct Config {
+    pub toggle_key: String,
     pub movement_up: String,
     pub movement_down: String,
     pub movement_left: String,
@@ -27,6 +28,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            toggle_key: "f8".to_string(),
             movement_up: "k".to_string(),
             movement_down: "j".to_string(),
             movement_left: "h".to_string(),
@@ -48,7 +50,9 @@ impl Default for Config {
 
 impl Config {
     pub fn default_toml() -> &'static str {
-        r#"movement_up = "k"
+        r#"toggle_key = "f8"
+
+movement_up = "k"
 movement_down = "j"
 movement_left = "h"
 movement_right = "l"
@@ -89,6 +93,7 @@ impl Modifier {
 
 #[derive(Clone, Copy)]
 pub struct KeyBindings {
+    pub toggle_key: i64,
     pub movement_up: i64,
     pub movement_down: i64,
     pub movement_left: i64,
@@ -109,6 +114,7 @@ pub struct KeyBindings {
 impl KeyBindings {
     pub fn from_config(config: &Config) -> Self {
         Self {
+            toggle_key: required_keycode(&config.toggle_key, "toggle_key"),
             movement_up: required_keycode(&config.movement_up, "movement_up"),
             movement_down: required_keycode(&config.movement_down, "movement_down"),
             movement_left: required_keycode(&config.movement_left, "movement_left"),
@@ -155,7 +161,18 @@ pub fn key_from_string(key: &str) -> Option<CGKeyCode> {
         ";" | "semicolon" => Some(41),
         "enter" | "return" => Some(36),
         "escape" | "esc" => Some(53),
+        "f1" => Some(122),
+        "f2" => Some(120),
+        "f3" => Some(99),
+        "f4" => Some(118),
+        "f5" => Some(96),
+        "f6" => Some(97),
+        "f7" => Some(98),
         "f8" => Some(100),
+        "f9" => Some(101),
+        "f10" => Some(109),
+        "f11" => Some(103),
+        "f12" => Some(111),
         // Modifiers are represented as flags, but we still accept them here.
         "shift" => Some(56),
         "option" | "alt" => Some(58),
@@ -255,6 +272,25 @@ fn required_keycode(value: &str, field_name: &str) -> i64 {
 fn validate_config(config: &Config) -> Vec<String> {
     let mut errors = Vec::new();
     let mut seen: HashMap<String, Vec<&str>> = HashMap::new();
+    let toggle_key = config.toggle_key.trim().to_ascii_lowercase();
+
+    if toggle_key.is_empty() {
+        errors.push("`toggle_key` cannot be empty.".to_string());
+    } else {
+        if is_modifier_name(&toggle_key) {
+            errors.push(format!(
+                "`toggle_key` cannot use modifier key `{}`; choose a regular key.",
+                config.toggle_key
+            ));
+        }
+
+        if key_from_string(&toggle_key).is_none() {
+            errors.push(format!(
+                "`toggle_key` has unsupported key `{}`. Use a supported key name from README.",
+                config.toggle_key
+            ));
+        }
+    }
 
     for (field, value) in action_bindings(config) {
         let normalized = value.trim().to_ascii_lowercase();
@@ -270,10 +306,10 @@ fn validate_config(config: &Config) -> Vec<String> {
             ));
         }
 
-        if normalized == "f8" {
+        if !toggle_key.is_empty() && normalized == toggle_key {
             errors.push(format!(
-                "`{}` cannot use `f8`; it is reserved for mouse-mode toggle.",
-                field
+                "`{}` cannot use `{}`; it is reserved for mouse-mode toggle.",
+                field, config.toggle_key
             ));
         }
 
@@ -356,6 +392,36 @@ mod tests {
     }
 
     #[test]
+    fn supports_function_keys_for_bindings() {
+        assert_eq!(key_from_string("f1"), Some(122));
+        assert_eq!(key_from_string("f12"), Some(111));
+    }
+
+    #[test]
+    fn parses_explicit_toggle_key_from_toml() {
+        let config: Config = toml::from_str(r#"toggle_key = "f1""#).expect("valid toml");
+        assert_eq!(config.toggle_key, "f1");
+
+        let errors = validate_config(&config);
+        assert!(
+            errors.is_empty(),
+            "expected no validation errors, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn falls_back_to_default_toggle_key_when_missing_from_toml() {
+        let config: Config = toml::from_str(r#"movement_up = "k""#).expect("valid toml");
+        assert_eq!(config.toggle_key, "f8");
+
+        let errors = validate_config(&config);
+        assert!(
+            errors.is_empty(),
+            "expected no validation errors, got: {errors:?}"
+        );
+    }
+
+    #[test]
     fn rejects_duplicate_action_bindings() {
         let config = Config {
             movement_up: "k".to_string(),
@@ -385,6 +451,21 @@ mod tests {
                 .iter()
                 .any(|error| error.contains("reserved for mouse-mode toggle")),
             "expected reserved key error, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn allows_f8_for_actions_when_toggle_key_is_different() {
+        let config = Config {
+            toggle_key: "g".to_string(),
+            left_click: "f8".to_string(),
+            ..Config::default()
+        };
+
+        let errors = validate_config(&config);
+        assert!(
+            errors.is_empty(),
+            "expected no validation errors, got: {errors:?}"
         );
     }
 
