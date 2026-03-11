@@ -9,6 +9,13 @@ homepage = "https://github.com/debacodes10/keymouse"
 readme = "README.md"
 keywords = ["mouse", "keyboard", "vim", "productivity"]
 categories = ["command-line-utilities"]
+exclude = [
+    "/target/**",
+    "/target-release/**",
+    "/keymouse",
+    "/keymouse-macos-*",
+    "/*.zip",
+]
 
 [features]
 # Declared to satisfy legacy objc/cocoa macro cfg checks on newer Rust toolchains.
