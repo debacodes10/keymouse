@@ -17,13 +17,16 @@ use enigo::{Enigo, MouseButton, MouseControllable};
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ffi::c_void;
+use std::fs;
 use std::ptr;
 use std::sync::OnceLock;
 use std::thread_local;
+use std::time::{Duration, Instant, SystemTime};
 
 static KEY_BINDINGS: OnceLock<KeyBindings> = OnceLock::new();
 static EVENT_TAP: OnceLock<usize> = OnceLock::new();
 static MOUSE_MODE_LISTENER: OnceLock<fn(bool)> = OnceLock::new();
+const CONFIG_POLL_INTERVAL: Duration = Duration::from_millis(500);
 
 struct AppState {
     enigo: Enigo,
@@ -32,17 +35,29 @@ struct AppState {
     grid: RecursiveGrid,
     overlay: Overlay,
     held_keys: HashSet<i64>,
+    grid_overlay_settings: config::GridOverlaySettings,
+    config_last_modified: Option<SystemTime>,
+    last_config_poll: Instant,
+    last_reload_error: Option<String>,
 }
 
 impl AppState {
     fn new() -> Self {
+        let mut overlay = Overlay::new();
+        let grid_overlay_settings = config::Config::default().grid_overlay_settings();
+        overlay.apply_settings(grid_overlay_settings.clone());
+
         Self {
             enigo: Enigo::new(),
             mouse_mode: false,
             drag_active: false,
             grid: RecursiveGrid::new(),
-            overlay: Overlay::new(),
+            overlay,
             held_keys: HashSet::new(),
+            grid_overlay_settings,
+            config_last_modified: None,
+            last_config_poll: Instant::now(),
+            last_reload_error: None,
         }
     }
 
@@ -79,9 +94,17 @@ pub fn initialize() {
 
     let config = config::load_config();
     let toggle_key_name = config.toggle_key.trim().to_ascii_lowercase();
+    let initial_overlay_settings = config.grid_overlay_settings();
+    let initial_modified = current_config_modified_time();
     let bindings = KeyBindings::from_config(&config);
     let _ = KEY_BINDINGS.set(bindings);
     eprintln!("Toggle key binding: {}", toggle_key_name);
+    APP_STATE.with(|cell| {
+        let mut state = cell.borrow_mut();
+        state.grid_overlay_settings = initial_overlay_settings.clone();
+        state.overlay.apply_settings(initial_overlay_settings);
+        state.config_last_modified = initial_modified;
+    });
 
     let mask = event_mask(&[CGEventType::KeyDown, CGEventType::KeyUp]);
 
@@ -179,6 +202,7 @@ unsafe extern "C" fn keyboard_callback(
         let bindings = *KEY_BINDINGS
             .get()
             .expect("key bindings must be initialized");
+        maybe_reload_grid_overlay_config(&mut state);
         let is_key_down = matches!(event_type, CGEventType::KeyDown);
         let is_first_keydown = if is_key_down {
             state.held_keys.insert(keycode)
@@ -293,4 +317,44 @@ unsafe extern "C" fn keyboard_callback(
         // Suppress all keydown/keyup events while mouse mode is active.
         ptr::null_mut()
     })
+}
+
+fn maybe_reload_grid_overlay_config(state: &mut AppState) {
+    if state.last_config_poll.elapsed() < CONFIG_POLL_INTERVAL {
+        return;
+    }
+    state.last_config_poll = Instant::now();
+
+    let current_modified = current_config_modified_time();
+    if current_modified == state.config_last_modified {
+        return;
+    }
+    state.config_last_modified = current_modified;
+
+    match config::load_config_for_reload() {
+        Ok(config) => {
+            let settings = config.grid_overlay_settings();
+            if settings != state.grid_overlay_settings {
+                state.grid_overlay_settings = settings.clone();
+                state.overlay.apply_settings(settings);
+                eprintln!(
+                    "Reloaded grid overlay settings from {}",
+                    config::config_path().display()
+                );
+            }
+            state.last_reload_error = None;
+        }
+        Err(error) => {
+            if state.last_reload_error.as_deref() != Some(error.as_str()) {
+                eprintln!("{}", error);
+            }
+            state.last_reload_error = Some(error);
+        }
+    }
+}
+
+fn current_config_modified_time() -> Option<SystemTime> {
+    fs::metadata(config::config_path())
+        .ok()
+        .and_then(|metadata| metadata.modified().ok())
 }

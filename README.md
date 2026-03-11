@@ -18,6 +18,7 @@ Control your mouse on macOS with fast, Vim-style keyboard navigation.
 - Left/right click from keyboard (defaults: `F` / `D`)
 - Drag toggle to hold/release left mouse button (default: `V`)
 - Recursive 3x3 jump grid with translucent overlay and depth indicator
+- Configurable grid labels, theme presets, and opacity (hot-reloads while running)
 - Multi-monitor aware grid targeting on the display under the cursor
 - Automatic event-tap re-enable if macOS temporarily disables the tap
 
@@ -252,6 +253,10 @@ drag_toggle = "v"
 
 fast_modifier = "shift"
 slow_modifier = "option"
+
+grid_theme = "classic"
+grid_opacity = 1.0
+grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
 ```
 
 Supported key names for bindings are currently:
@@ -261,6 +266,14 @@ Supported key names for bindings are currently:
 - Modifiers: `"shift"` and `"option"`/`"alt"` (for modifier fields)
 
 Invalid or conflicting config values now produce startup validation errors.
+
+Grid overlay visual options:
+
+- `grid_theme`: `classic`, `midnight`, `ocean`, `forest`
+- `grid_opacity`: `0.0` to `1.0`
+- `grid_labels`: exactly 9 strings (visual labels only)
+
+Keymouse hot-reloads these grid visual options when `config.toml` changes.
 
 ## Troubleshooting
 

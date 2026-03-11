@@ -4,7 +4,11 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Deserialize)]
+const GRID_LABEL_COUNT: usize = 9;
+const GRID_LABEL_MAX_CHARS: usize = 6;
+const SUPPORTED_GRID_THEMES: [&str; 4] = ["classic", "midnight", "ocean", "forest"];
+
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Config {
     pub toggle_key: String,
@@ -23,6 +27,9 @@ pub struct Config {
     pub drag_toggle: String,
     pub fast_modifier: String,
     pub slow_modifier: String,
+    pub grid_labels: Vec<String>,
+    pub grid_theme: String,
+    pub grid_opacity: f64,
 }
 
 impl Default for Config {
@@ -44,6 +51,9 @@ impl Default for Config {
             drag_toggle: "v".to_string(),
             fast_modifier: "shift".to_string(),
             slow_modifier: "option".to_string(),
+            grid_labels: default_grid_labels(),
+            grid_theme: "classic".to_string(),
+            grid_opacity: 1.0,
         }
     }
 }
@@ -71,8 +81,31 @@ drag_toggle = "v"
 
 fast_modifier = "shift"
 slow_modifier = "option"
+
+# Grid overlay visuals
+# Available themes: "classic", "midnight", "ocean", "forest"
+grid_theme = "classic"
+# Opacity multiplier for the grid overlay: 0.0 to 1.0
+grid_opacity = 1.0
+# Labels are visual only; key mapping remains Q/W/E A/S/D Z/X/C.
+grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
 "#
     }
+
+    pub fn grid_overlay_settings(&self) -> GridOverlaySettings {
+        GridOverlaySettings {
+            labels: labels_from_vec(&self.grid_labels).unwrap_or_else(default_grid_label_array),
+            theme: self.grid_theme.trim().to_ascii_lowercase(),
+            opacity: self.grid_opacity.clamp(0.0, 1.0),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+pub struct GridOverlaySettings {
+    pub labels: [String; GRID_LABEL_COUNT],
+    pub theme: String,
+    pub opacity: f64,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -184,22 +217,13 @@ pub fn load_config() -> Config {
     let path = config_path();
 
     if path.exists() {
-        let config = match parse_config_file(&path) {
+        let config = match load_config_for_reload() {
             Ok(config) => config,
             Err(error) => {
                 eprintln!("{}", error);
                 std::process::exit(1);
             }
         };
-
-        let validation_errors = validate_config(&config);
-        if !validation_errors.is_empty() {
-            eprintln!("Invalid Keymouse configuration in {}:", path.display());
-            for error in validation_errors {
-                eprintln!("  - {}", error);
-            }
-            std::process::exit(1);
-        }
 
         eprintln!("Loaded Keymouse config from {}", path.display());
         return config;
@@ -233,7 +257,27 @@ pub fn check_config() -> Result<String, Vec<String>> {
     }
 }
 
-fn config_path() -> PathBuf {
+pub fn load_config_for_reload() -> Result<Config, String> {
+    let path = config_path();
+    if !path.exists() {
+        return Ok(Config::default());
+    }
+
+    let config = parse_config_file(&path)?;
+    let validation_errors = validate_config(&config);
+    if validation_errors.is_empty() {
+        Ok(config)
+    } else {
+        let mut message = format!("Invalid Keymouse configuration in {}:", path.display());
+        for error in validation_errors {
+            message.push_str("\n  - ");
+            message.push_str(&error);
+        }
+        Err(message)
+    }
+}
+
+pub fn config_path() -> PathBuf {
     let mut path = dirs::config_dir().unwrap_or_else(|| PathBuf::from(".config"));
     path.push("keymouse");
     path.push("config.toml");
@@ -357,6 +401,44 @@ fn validate_config(config: &Config) -> Vec<String> {
         );
     }
 
+    if config.grid_labels.len() != GRID_LABEL_COUNT {
+        errors.push(format!(
+            "`grid_labels` must contain exactly {} entries.",
+            GRID_LABEL_COUNT
+        ));
+    } else {
+        for (index, label) in config.grid_labels.iter().enumerate() {
+            let trimmed = label.trim();
+            if trimmed.is_empty() {
+                errors.push(format!("`grid_labels[{index}]` cannot be empty."));
+                continue;
+            }
+            if trimmed.chars().count() > GRID_LABEL_MAX_CHARS {
+                errors.push(format!(
+                    "`grid_labels[{index}]` is too long (max {} characters).",
+                    GRID_LABEL_MAX_CHARS
+                ));
+            }
+        }
+    }
+
+    let theme = config.grid_theme.trim().to_ascii_lowercase();
+    if !SUPPORTED_GRID_THEMES.contains(&theme.as_str()) {
+        errors.push(format!(
+            "`grid_theme` has unsupported value `{}`. Allowed: {}.",
+            config.grid_theme,
+            SUPPORTED_GRID_THEMES
+                .iter()
+                .map(|value| format!("`{value}`"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+
+    if !config.grid_opacity.is_finite() || !(0.0..=1.0).contains(&config.grid_opacity) {
+        errors.push("`grid_opacity` must be a number between 0.0 and 1.0.".to_string());
+    }
+
     errors
 }
 
@@ -380,6 +462,36 @@ fn action_bindings(config: &Config) -> [(&'static str, &str); 13] {
 
 fn is_modifier_name(value: &str) -> bool {
     matches!(value, "shift" | "option" | "alt")
+}
+
+fn default_grid_labels() -> Vec<String> {
+    ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
+        .iter()
+        .map(|value| value.to_string())
+        .collect()
+}
+
+fn default_grid_label_array() -> [String; GRID_LABEL_COUNT] {
+    [
+        "Q".to_string(),
+        "W".to_string(),
+        "E".to_string(),
+        "A".to_string(),
+        "S".to_string(),
+        "D".to_string(),
+        "Z".to_string(),
+        "X".to_string(),
+        "C".to_string(),
+    ]
+}
+
+fn labels_from_vec(values: &[String]) -> Option<[String; GRID_LABEL_COUNT]> {
+    if values.len() != GRID_LABEL_COUNT {
+        return None;
+    }
+
+    let labels = values.iter().cloned().collect::<Vec<_>>();
+    labels.try_into().ok()
 }
 
 #[cfg(test)]

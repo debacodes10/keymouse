@@ -30,3 +30,11 @@ drag_toggle = "v" # Toggle left-button hold for drag (press again to release)
 # Supported values: "shift", "option" (or "alt")
 fast_modifier = "shift"
 slow_modifier = "option"
+
+# Grid overlay visuals
+# Available values: "classic", "midnight", "ocean", "forest"
+grid_theme = "classic"
+# Overlay opacity multiplier (0.0 to 1.0)
+grid_opacity = 1.0
+# Visual labels only (controls remain Q/W/E A/S/D Z/X/C)
+grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
