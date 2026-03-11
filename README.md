@@ -187,6 +187,7 @@ If launching from terminal, this is usually Terminal/iTerm.
 ### 6) Use jump grid mode
 
 - Press `;` (default `grid_key`) to show the 3x3 grid on the display under the cursor.
+- While grid mode is open, press `1..9` to switch to monitor 1..9 (ordered left-to-right, then top-to-bottom).
 - Select cells with `Q/W/E`, `A/S/D`, `Z/X/C` to zoom recursively.
 - Optional alternates in grid mode: `F` maps to middle-left, `G` maps to center.
 - Press `Enter` to move cursor to the selected region center.
@@ -205,6 +206,7 @@ If launching from terminal, this is usually Terminal/iTerm.
 | `D` | Right click |
 | `V` | Toggle drag (left button hold/release) |
 | `;` | Enter grid mode |
+| `1..9` (in grid mode) | Switch active monitor |
 | `Q/W/E/A/S/D/Z/X/C` | Select grid cell recursively |
 | `Enter` | Confirm grid jump |
 | `Esc` | Cancel grid mode |

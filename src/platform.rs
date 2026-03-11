@@ -7,6 +7,7 @@ use core_graphics::event::{
 };
 use core_graphics::geometry::CGPoint;
 use core_graphics::sys::CGEventRef;
+use std::cmp::Ordering;
 use std::ffi::c_void;
 
 pub const MAX_DISPLAYS: usize = 16;
@@ -58,12 +59,23 @@ pub fn event_mask(types: &[CGEventType]) -> u64 {
 }
 
 pub fn display_for_point(point: CGPoint) -> CGDisplay {
-    let mut display_ids = [0_u32; MAX_DISPLAYS];
-    let mut display_count = 0_u32;
     let mut display = CGDisplay::main();
 
     // Use the display currently containing the cursor so grid navigation works
     // correctly on multi-monitor setups.
+    for candidate in active_displays_sorted() {
+        if candidate.bounds().contains(&point) {
+            display = candidate;
+            break;
+        }
+    }
+
+    display
+}
+
+pub fn active_displays_sorted() -> Vec<CGDisplay> {
+    let mut display_ids = [0_u32; MAX_DISPLAYS];
+    let mut display_count = 0_u32;
     let result = unsafe {
         CGGetActiveDisplayList(
             MAX_DISPLAYS as u32,
@@ -71,15 +83,31 @@ pub fn display_for_point(point: CGPoint) -> CGDisplay {
             &mut display_count,
         )
     };
-    if result == 0 {
-        for display_id in display_ids.iter().copied().take(display_count as usize) {
-            let candidate = CGDisplay::new(display_id);
-            if candidate.bounds().contains(&point) {
-                display = candidate;
-                break;
-            }
-        }
+    if result != 0 || display_count == 0 {
+        return vec![CGDisplay::main()];
     }
 
-    display
+    let mut displays = display_ids
+        .iter()
+        .copied()
+        .take(display_count as usize)
+        .map(|id| (id, CGDisplay::new(id)))
+        .collect::<Vec<_>>();
+
+    // Keep monitor numbers deterministic across runs/layout changes.
+    displays.sort_by(|a, b| {
+        let a_bounds = a.1.bounds();
+        let b_bounds = b.1.bounds();
+        let order_x = a_bounds.origin.x.total_cmp(&b_bounds.origin.x);
+        if order_x != Ordering::Equal {
+            return order_x;
+        }
+        let order_y = a_bounds.origin.y.total_cmp(&b_bounds.origin.y);
+        if order_y != Ordering::Equal {
+            return order_y;
+        }
+        a.0.cmp(&b.0)
+    });
+
+    displays.into_iter().map(|(_, display)| display).collect()
 }

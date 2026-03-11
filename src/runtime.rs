@@ -1,12 +1,15 @@
 use crate::config::{self, KeyBindings};
 use crate::grid::bounds::GridBounds;
 use crate::grid::recursive::RecursiveGrid;
-use crate::input::{KEYCODE_ESCAPE, grid_cell_for_keycode, movement_step, scroll_step};
+use crate::input::{
+    KEYCODE_ESCAPE, display_index_for_keycode, grid_cell_for_keycode, movement_step, scroll_step,
+};
 use crate::overlay::Overlay;
 use crate::platform::{
     CFMachPortCreateRunLoopSource, CFRunLoopAddSource, CFRunLoopGetCurrent, CFRunLoopRun,
     CGEventGetFlags, CGEventGetIntegerValueField, CGEventGetLocation, CGEventTapCreate,
-    CGEventTapEnable, KEYBOARD_EVENT_KEYCODE, display_for_point, event_mask,
+    CGEventTapEnable, KEYBOARD_EVENT_KEYCODE, active_displays_sorted, display_for_point,
+    event_mask,
 };
 use core_foundation::runloop::kCFRunLoopCommonModes;
 use core_graphics::event::{
@@ -179,6 +182,9 @@ unsafe extern "C" fn keyboard_callback(
         event_type,
         CGEventType::TapDisabledByTimeout | CGEventType::TapDisabledByUserInput
     ) {
+        // Event-tap disable can drop key-up events; clear held state so key
+        // presses keep working after re-enable in both debug and release builds.
+        APP_STATE.with(|cell| cell.borrow_mut().held_keys.clear());
         if let Some(tap) = EVENT_TAP.get() {
             // SAFETY: tap comes from successful CGEventTapCreate and remains valid
             // for the lifetime of the process run loop.
@@ -226,16 +232,23 @@ unsafe extern "C" fn keyboard_callback(
             // SAFETY: event is provided by Quartz for this callback invocation.
             let cursor_point = unsafe { CGEventGetLocation(event) };
             let display = display_for_point(cursor_point);
-            let display_bounds = GridBounds::from_display(display);
-            state.grid.start(display_bounds);
-            state.overlay.calibrate_from_cursor(cursor_point);
-            if let Some((bounds, depth)) = state.grid.render_state() {
-                state.overlay.show_or_update(bounds, depth);
-            }
+            start_grid_on_display(&mut state, display, cursor_point);
             return ptr::null_mut();
         }
 
         if state.grid.is_active() {
+            if is_key_down {
+                if let Some(display_index) = display_index_for_keycode(keycode) {
+                    let displays = active_displays_sorted();
+                    if let Some(display) = displays.get(display_index) {
+                        // SAFETY: event is provided by Quartz for this callback invocation.
+                        let cursor_point = unsafe { CGEventGetLocation(event) };
+                        start_grid_on_display(&mut state, *display, cursor_point);
+                    }
+                    return ptr::null_mut();
+                }
+            }
+
             if is_first_keydown {
                 if keycode == bindings.confirm_key {
                     if let Some(final_bounds) = state.grid.confirm() {
@@ -350,6 +363,19 @@ fn maybe_reload_grid_overlay_config(state: &mut AppState) {
             }
             state.last_reload_error = Some(error);
         }
+    }
+}
+
+fn start_grid_on_display(
+    state: &mut AppState,
+    display: core_graphics::display::CGDisplay,
+    cursor_point: core_graphics::geometry::CGPoint,
+) {
+    let display_bounds = GridBounds::from_display(display);
+    state.grid.start(display_bounds);
+    state.overlay.calibrate_from_cursor(cursor_point);
+    if let Some((bounds, depth)) = state.grid.render_state() {
+        state.overlay.show_or_update(bounds, depth);
     }
 }
 

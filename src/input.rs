@@ -4,6 +4,24 @@ pub const KEYCODE_D: i64 = 2;
 pub const KEYCODE_F: i64 = 3;
 pub const KEYCODE_G: i64 = 5;
 pub const KEYCODE_ESCAPE: i64 = 53;
+pub const KEYCODE_1: i64 = 18;
+pub const KEYCODE_2: i64 = 19;
+pub const KEYCODE_3: i64 = 20;
+pub const KEYCODE_4: i64 = 21;
+pub const KEYCODE_5: i64 = 23;
+pub const KEYCODE_6: i64 = 22;
+pub const KEYCODE_7: i64 = 26;
+pub const KEYCODE_8: i64 = 28;
+pub const KEYCODE_9: i64 = 25;
+pub const KEYCODE_NUMPAD_1: i64 = 83;
+pub const KEYCODE_NUMPAD_2: i64 = 84;
+pub const KEYCODE_NUMPAD_3: i64 = 85;
+pub const KEYCODE_NUMPAD_4: i64 = 86;
+pub const KEYCODE_NUMPAD_5: i64 = 87;
+pub const KEYCODE_NUMPAD_6: i64 = 88;
+pub const KEYCODE_NUMPAD_7: i64 = 89;
+pub const KEYCODE_NUMPAD_8: i64 = 91;
+pub const KEYCODE_NUMPAD_9: i64 = 92;
 pub const KEYCODE_Q: i64 = 12;
 pub const KEYCODE_W: i64 = 13;
 pub const KEYCODE_E: i64 = 14;
@@ -36,6 +54,30 @@ pub fn grid_cell_for_keycode(keycode: i64) -> Option<(i32, i32)> {
         // Alternate bindings to support home-row recursive selection examples.
         KEYCODE_F => Some((1, 0)),
         KEYCODE_G => Some((1, 1)),
+        _ => None,
+    }
+}
+
+pub fn display_index_for_keycode(keycode: i64) -> Option<usize> {
+    match keycode {
+        KEYCODE_1 => Some(0),
+        KEYCODE_NUMPAD_1 => Some(0),
+        KEYCODE_2 => Some(1),
+        KEYCODE_NUMPAD_2 => Some(1),
+        KEYCODE_3 => Some(2),
+        KEYCODE_NUMPAD_3 => Some(2),
+        KEYCODE_4 => Some(3),
+        KEYCODE_NUMPAD_4 => Some(3),
+        KEYCODE_5 => Some(4),
+        KEYCODE_NUMPAD_5 => Some(4),
+        KEYCODE_6 => Some(5),
+        KEYCODE_NUMPAD_6 => Some(5),
+        KEYCODE_7 => Some(6),
+        KEYCODE_NUMPAD_7 => Some(6),
+        KEYCODE_8 => Some(7),
+        KEYCODE_NUMPAD_8 => Some(7),
+        KEYCODE_9 => Some(8),
+        KEYCODE_NUMPAD_9 => Some(8),
         _ => None,
     }
 }

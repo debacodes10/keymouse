@@ -156,6 +156,7 @@ pub fn run() {
         add_hint_item(menu, "Hold H/J/K/L: move cursor");
         add_hint_item(menu, "V: toggle drag hold");
         add_hint_item(menu, "; then Q..C: grid jump");
+        add_hint_item(menu, "Grid active: 1..9 switch monitor");
         add_hint_item(menu, "Enter: confirm grid, Esc: cancel");
 
         add_separator(menu);
