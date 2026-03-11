@@ -26,6 +26,7 @@ pub struct Overlay {
     depth_label: id,
     cell_views: [id; 9],
     cell_labels: [id; 9],
+    cell_markers: [id; 9],
     settings: GridOverlaySettings,
 }
 
@@ -46,6 +47,7 @@ impl Overlay {
             depth_label: nil,
             cell_views: [nil; 9],
             cell_labels: [nil; 9],
+            cell_markers: [nil; 9],
             settings: default_overlay_settings(),
         }
     }
@@ -102,12 +104,13 @@ impl Overlay {
 
             let content: id = msg_send![window, contentView];
             let depth = Self::build_depth_label(content);
-            let (cell_views, cell_labels) = Self::build_cells(content);
+            let (cell_views, cell_labels, cell_markers) = Self::build_cells(content);
 
             self.window = window;
             self.depth_label = depth;
             self.cell_views = cell_views;
             self.cell_labels = cell_labels;
+            self.cell_markers = cell_markers;
             self.apply_visuals();
         }
     }
@@ -144,9 +147,10 @@ impl Overlay {
         label
     }
 
-    unsafe fn build_cells(content: id) -> ([id; 9], [id; 9]) {
+    unsafe fn build_cells(content: id) -> ([id; 9], [id; 9], [id; 9]) {
         let mut cell_views = [nil; 9];
         let mut cell_labels = [nil; 9];
+        let mut cell_markers = [nil; 9];
 
         for index in 0..9 {
             let view_frame = NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(10.0, 10.0));
@@ -154,6 +158,11 @@ impl Overlay {
             let view: id = msg_send![view, initWithFrame: view_frame];
             let _: () = msg_send![view, setWantsLayer: YES];
             let _: () = msg_send![content, addSubview: view];
+
+            let marker: id = msg_send![class!(NSView), alloc];
+            let marker: id = msg_send![marker, initWithFrame: view_frame];
+            let _: () = msg_send![marker, setWantsLayer: YES];
+            let _: () = msg_send![content, addSubview: marker];
 
             let label: id = msg_send![class!(NSTextField), alloc];
             let label: id = msg_send![label, initWithFrame: view_frame];
@@ -169,9 +178,10 @@ impl Overlay {
 
             cell_views[index] = view;
             cell_labels[index] = label;
+            cell_markers[index] = marker;
         }
 
-        (cell_views, cell_labels)
+        (cell_views, cell_labels, cell_markers)
     }
 
     fn apply_visuals(&self) {
@@ -209,9 +219,29 @@ impl Overlay {
                 let _: () = msg_send![layer, setShadowOffset: NSSize::new(0.0, -1.0)];
                 let _: () = msg_send![layer, setMasksToBounds: NO];
 
-                let label_text = NSString::alloc(nil).init_str(&self.settings.labels[index]);
+                let label_text =
+                    NSString::alloc(nil).init_str(&format!("{} ·", self.settings.labels[index]));
                 let _: () = msg_send![self.cell_labels[index], setTextColor: text];
                 let _: () = msg_send![self.cell_labels[index], setStringValue: label_text];
+
+                let marker_layer: id = msg_send![self.cell_markers[index], layer];
+                let marker_fill = ns_color_from_rgba(
+                    palette.cell_border.0,
+                    palette.cell_border.1,
+                    palette.cell_border.2,
+                    0.95 * self.settings.opacity,
+                );
+                let marker_ring = ns_color_from_rgba(1.0, 1.0, 1.0, 0.8 * self.settings.opacity);
+                let marker_fill_color: id = msg_send![marker_fill, CGColor];
+                let marker_ring_color: id = msg_send![marker_ring, CGColor];
+                let _: () = msg_send![marker_layer, setBackgroundColor: marker_fill_color];
+                let _: () = msg_send![marker_layer, setBorderColor: marker_ring_color];
+                let _: () = msg_send![marker_layer, setBorderWidth: 1.2_f64];
+                let _: () = msg_send![marker_layer, setCornerRadius: 4.5_f64];
+                let _: () =
+                    msg_send![marker_layer, setShadowOpacity: 0.45_f64 * self.settings.opacity];
+                let _: () = msg_send![marker_layer, setShadowRadius: 3.0_f64];
+                let _: () = msg_send![marker_layer, setShadowOffset: NSSize::new(0.0, -0.5)];
             }
 
             let depth_color = ns_color_from_rgba(
@@ -262,13 +292,24 @@ impl Overlay {
                         NSPoint::new(x + inset, y + inset),
                         NSSize::new(cell_width - (inset * 2.0), cell_height - (inset * 2.0)),
                     );
+                    let marker_size = 9.0;
+                    let marker_center_x = cell_frame.origin.x + (cell_frame.size.width / 2.0);
+                    let marker_center_y = cell_frame.origin.y + (cell_frame.size.height / 2.0);
+                    let marker_frame = NSRect::new(
+                        NSPoint::new(
+                            marker_center_x - (marker_size / 2.0),
+                            marker_center_y - (marker_size / 2.0),
+                        ),
+                        NSSize::new(marker_size, marker_size),
+                    );
                     let label_frame = NSRect::new(
-                        NSPoint::new(x + inset, y + (cell_height * 0.33)),
+                        NSPoint::new(cell_frame.origin.x, marker_center_y - 21.0),
                         NSSize::new(cell_width - (inset * 2.0), 44.0),
                     );
 
                     let _: () = msg_send![self.cell_views[index], setFrame: cell_frame];
                     let _: () = msg_send![self.cell_labels[index], setFrame: label_frame];
+                    let _: () = msg_send![self.cell_markers[index], setFrame: marker_frame];
                 }
             }
 
