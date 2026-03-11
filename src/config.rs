@@ -30,6 +30,7 @@ pub struct Config {
     pub grid_labels: Vec<String>,
     pub grid_theme: String,
     pub grid_opacity: f64,
+    pub grid_color: String,
 }
 
 impl Default for Config {
@@ -54,6 +55,7 @@ impl Default for Config {
             grid_labels: default_grid_labels(),
             grid_theme: "classic".to_string(),
             grid_opacity: 1.0,
+            grid_color: String::new(),
         }
     }
 }
@@ -87,6 +89,9 @@ slow_modifier = "option"
 grid_theme = "classic"
 # Opacity multiplier for the grid overlay: 0.0 to 1.0
 grid_opacity = 1.0
+# Optional accent color override for the grid in hex format (#RRGGBB).
+# Leave empty to use the selected theme colors.
+grid_color = ""
 # Labels are visual only; key mapping remains Q/W/E A/S/D Z/X/C.
 grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
 "#
@@ -97,6 +102,7 @@ grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
             labels: labels_from_vec(&self.grid_labels).unwrap_or_else(default_grid_label_array),
             theme: self.grid_theme.trim().to_ascii_lowercase(),
             opacity: self.grid_opacity.clamp(0.0, 1.0),
+            accent_color: parse_hex_color(&self.grid_color),
         }
     }
 }
@@ -106,6 +112,7 @@ pub struct GridOverlaySettings {
     pub labels: [String; GRID_LABEL_COUNT],
     pub theme: String,
     pub opacity: f64,
+    pub accent_color: Option<(f64, f64, f64)>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -438,6 +445,9 @@ fn validate_config(config: &Config) -> Vec<String> {
     if !config.grid_opacity.is_finite() || !(0.0..=1.0).contains(&config.grid_opacity) {
         errors.push("`grid_opacity` must be a number between 0.0 and 1.0.".to_string());
     }
+    if !config.grid_color.trim().is_empty() && parse_hex_color(&config.grid_color).is_none() {
+        errors.push("`grid_color` must be a hex RGB color like `#4fd1ff`.".to_string());
+    }
 
     errors
 }
@@ -492,6 +502,28 @@ fn labels_from_vec(values: &[String]) -> Option<[String; GRID_LABEL_COUNT]> {
 
     let labels = values.iter().cloned().collect::<Vec<_>>();
     labels.try_into().ok()
+}
+
+fn parse_hex_color(value: &str) -> Option<(f64, f64, f64)> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let hex = trimmed.strip_prefix('#').unwrap_or(trimmed);
+    if hex.len() != 6 || !hex.chars().all(|value| value.is_ascii_hexdigit()) {
+        return None;
+    }
+
+    let red = u8::from_str_radix(&hex[0..2], 16).ok()?;
+    let green = u8::from_str_radix(&hex[2..4], 16).ok()?;
+    let blue = u8::from_str_radix(&hex[4..6], 16).ok()?;
+
+    Some((
+        red as f64 / 255.0,
+        green as f64 / 255.0,
+        blue as f64 / 255.0,
+    ))
 }
 
 #[cfg(test)]
@@ -621,6 +653,34 @@ mod tests {
         assert!(
             errors.is_empty(),
             "expected no validation errors, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn accepts_valid_grid_color_hex() {
+        let config = Config {
+            grid_color: "#29ccff".to_string(),
+            ..Config::default()
+        };
+
+        let errors = validate_config(&config);
+        assert!(
+            errors.is_empty(),
+            "expected no validation errors, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_grid_color() {
+        let config = Config {
+            grid_color: "teal".to_string(),
+            ..Config::default()
+        };
+
+        let errors = validate_config(&config);
+        assert!(
+            errors.iter().any(|error| error.contains("`grid_color`")),
+            "expected grid_color validation error, got: {errors:?}"
         );
     }
 }

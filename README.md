@@ -256,6 +256,7 @@ slow_modifier = "option"
 
 grid_theme = "classic"
 grid_opacity = 1.0
+grid_color = "#4fd1ff"
 grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
 ```
 
@@ -271,6 +272,7 @@ Grid overlay visual options:
 
 - `grid_theme`: `classic`, `midnight`, `ocean`, `forest`
 - `grid_opacity`: `0.0` to `1.0`
+- `grid_color`: optional accent color (`#RRGGBB`) for grid border/depth tint
 - `grid_labels`: exactly 9 strings (visual labels only)
 
 Keymouse hot-reloads these grid visual options when `config.toml` changes.

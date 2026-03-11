@@ -176,7 +176,7 @@ impl Overlay {
 
     fn apply_visuals(&self) {
         unsafe {
-            let palette = palette_for_theme(&self.settings.theme);
+            let palette = palette_for_theme(&self.settings.theme, self.settings.accent_color);
             for index in 0..9 {
                 let layer: id = msg_send![self.cell_views[index], layer];
 
@@ -202,7 +202,12 @@ impl Overlay {
                 let border_color: id = msg_send![border, CGColor];
                 let _: () = msg_send![layer, setBackgroundColor: bg_color];
                 let _: () = msg_send![layer, setBorderColor: border_color];
-                let _: () = msg_send![layer, setBorderWidth: 1.5_f64];
+                let _: () = msg_send![layer, setBorderWidth: 2.0_f64];
+                let _: () = msg_send![layer, setCornerRadius: 12.0_f64];
+                let _: () = msg_send![layer, setShadowOpacity: 0.28_f64 * self.settings.opacity];
+                let _: () = msg_send![layer, setShadowRadius: 8.0_f64];
+                let _: () = msg_send![layer, setShadowOffset: NSSize::new(0.0, -1.0)];
+                let _: () = msg_send![layer, setMasksToBounds: NO];
 
                 let label_text = NSString::alloc(nil).init_str(&self.settings.labels[index]);
                 let _: () = msg_send![self.cell_labels[index], setTextColor: text];
@@ -246,17 +251,20 @@ impl Overlay {
             let height = frame.size.height;
             let cell_width = width / 3.0;
             let cell_height = height / 3.0;
+            let inset = 7.0;
 
             for row in 0..3 {
                 for col in 0..3 {
                     let index = (row * 3 + col) as usize;
                     let x = col as f64 * cell_width;
                     let y = height - ((row as f64 + 1.0) * cell_height);
-                    let cell_frame =
-                        NSRect::new(NSPoint::new(x, y), NSSize::new(cell_width, cell_height));
+                    let cell_frame = NSRect::new(
+                        NSPoint::new(x + inset, y + inset),
+                        NSSize::new(cell_width - (inset * 2.0), cell_height - (inset * 2.0)),
+                    );
                     let label_frame = NSRect::new(
-                        NSPoint::new(x, y + (cell_height * 0.34)),
-                        NSSize::new(cell_width, 44.0),
+                        NSPoint::new(x + inset, y + (cell_height * 0.33)),
+                        NSSize::new(cell_width - (inset * 2.0), 44.0),
                     );
 
                     let _: () = msg_send![self.cell_views[index], setFrame: cell_frame];
@@ -287,33 +295,55 @@ struct ThemePalette {
     depth_text: (f64, f64, f64, f64),
 }
 
-fn palette_for_theme(theme: &str) -> ThemePalette {
-    match theme {
+fn palette_for_theme(theme: &str, accent_color: Option<(f64, f64, f64)>) -> ThemePalette {
+    let mut palette = match theme {
         "midnight" => ThemePalette {
-            cell_bg: (0.05, 0.08, 0.16, 0.55),
-            cell_border: (0.44, 0.57, 0.90, 0.95),
-            cell_text: (0.91, 0.95, 1.00, 1.00),
-            depth_text: (0.70, 0.81, 1.00, 1.00),
+            cell_bg: (0.04, 0.07, 0.15, 0.62),
+            cell_border: (0.43, 0.60, 0.94, 0.96),
+            cell_text: (0.93, 0.96, 1.00, 1.00),
+            depth_text: (0.74, 0.85, 1.00, 1.00),
         },
         "ocean" => ThemePalette {
-            cell_bg: (0.02, 0.19, 0.23, 0.50),
-            cell_border: (0.24, 0.78, 0.83, 0.95),
-            cell_text: (0.88, 1.00, 0.99, 1.00),
-            depth_text: (0.61, 0.95, 0.90, 1.00),
+            cell_bg: (0.02, 0.20, 0.26, 0.60),
+            cell_border: (0.24, 0.83, 0.91, 0.98),
+            cell_text: (0.90, 1.00, 0.99, 1.00),
+            depth_text: (0.66, 0.97, 0.94, 1.00),
         },
         "forest" => ThemePalette {
-            cell_bg: (0.10, 0.20, 0.12, 0.50),
-            cell_border: (0.50, 0.86, 0.54, 0.95),
-            cell_text: (0.94, 1.00, 0.94, 1.00),
-            depth_text: (0.74, 1.00, 0.76, 1.00),
+            cell_bg: (0.09, 0.19, 0.11, 0.58),
+            cell_border: (0.52, 0.90, 0.55, 0.98),
+            cell_text: (0.95, 1.00, 0.95, 1.00),
+            depth_text: (0.78, 1.00, 0.80, 1.00),
         },
         _ => ThemePalette {
-            cell_bg: (0.15, 0.15, 0.15, 0.16),
-            cell_border: (1.00, 1.00, 1.00, 0.45),
+            cell_bg: (0.13, 0.14, 0.16, 0.35),
+            cell_border: (0.92, 0.95, 1.00, 0.72),
             cell_text: (1.00, 1.00, 1.00, 1.00),
-            depth_text: (1.00, 1.00, 1.00, 1.00),
+            depth_text: (0.94, 0.97, 1.00, 1.00),
         },
+    };
+
+    if let Some(accent) = accent_color {
+        palette.cell_bg = blend_rgba(palette.cell_bg, (accent.0, accent.1, accent.2, 0.62), 0.18);
+        palette.cell_border = (accent.0, accent.1, accent.2, 0.98);
+        palette.depth_text = (accent.0, accent.1, accent.2, 1.00);
     }
+
+    palette
+}
+
+fn blend_rgba(
+    base: (f64, f64, f64, f64),
+    overlay: (f64, f64, f64, f64),
+    ratio: f64,
+) -> (f64, f64, f64, f64) {
+    let r = ratio.clamp(0.0, 1.0);
+    (
+        base.0 + (overlay.0 - base.0) * r,
+        base.1 + (overlay.1 - base.1) * r,
+        base.2 + (overlay.2 - base.2) * r,
+        base.3 + (overlay.3 - base.3) * r,
+    )
 }
 
 fn ns_color_from_rgba(red: f64, green: f64, blue: f64, alpha: f64) -> id {
@@ -344,6 +374,7 @@ fn default_overlay_settings() -> GridOverlaySettings {
         ],
         theme: "classic".to_string(),
         opacity: 1.0,
+        accent_color: None,
     }
 }
 

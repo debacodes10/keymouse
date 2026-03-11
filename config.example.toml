@@ -36,5 +36,7 @@ slow_modifier = "option"
 grid_theme = "classic"
 # Overlay opacity multiplier (0.0 to 1.0)
 grid_opacity = 1.0
+# Optional grid accent color in hex format (#RRGGBB). Leave empty to use theme defaults.
+grid_color = ""
 # Visual labels only (controls remain Q/W/E A/S/D Z/X/C)
 grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
