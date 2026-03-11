@@ -29,13 +29,21 @@ Control your mouse on macOS with fast, Vim-style keyboard navigation.
 cargo install keymouse
 ```
 
-Run it:
+Create a macOS app bundle (recommended for Spotlight/Finder launch):
+
+```bash
+keymouse --install-app
+```
+
+Then launch `Keymouse` from Spotlight or from `~/Applications/Keymouse.app`.
+
+You can still run directly from terminal:
 
 ```bash
 keymouse
 ```
 
-This launches Keymouse as a macOS menu bar app (`KM`).
+Both paths launch Keymouse as a macOS menu bar app (`KM`).
 
 ### Option 2: Download a prebuilt binary from GitHub Releases
 
@@ -88,6 +96,11 @@ keymouse --install-app
 ```
 
 If an existing app bundle is found, Keymouse asks before replacing it.
+
+Launch from:
+
+- Spotlight: type `Keymouse`
+- Finder: `~/Applications/Keymouse.app`
 
 Remove the app bundle:
 
@@ -143,19 +156,20 @@ Grant permissions to the app that launches Keymouse:
 If launching from Spotlight, this is usually `Keymouse.app`.
 If launching from terminal, this is usually Terminal/iTerm.
 
-### 3) Toggle mouse mode
+### 3) Easy access
+
+- Keep using Spotlight (`Cmd+Space`, then type `Keymouse`).
+- Optional: in Finder, open `~/Applications`, right-click `Keymouse.app`, then choose `Add to Dock`.
+- To auto-start on login, open the menu bar item `KM` -> `Start at Login`.
+
+### 4) Toggle mouse mode
 
 - Press your configured `toggle_key` to turn mouse mode on/off (default: `F8`).
 - Or use the menu bar item: `KM` -> `Turn Mouse Mode On/Off`.
 - When mouse mode is **off**, all keys behave normally.
 - When mouse mode is **on**, keydown/keyup events are intercepted by Keymouse.
 
-### 4) Start at login
-
-- In the menu bar app, use `KM` -> `Start at Login`.
-- This installs/removes a user LaunchAgent for the current executable path.
-
-### 4) Control the pointer
+### 5) Control the pointer
 
 - Move: `H J K L` (hold keys for continuous movement)
 - Scroll: `U N B M`
@@ -163,7 +177,7 @@ If launching from terminal, this is usually Terminal/iTerm.
 - Drag: `V` to hold left mouse button, `V` again to release
 - Modifiers: `Shift` = fast, `Option/Alt` = slow
 
-### 5) Use jump grid mode
+### 6) Use jump grid mode
 
 - Press `;` (default `grid_key`) to show the 3x3 grid on the display under the cursor.
 - Select cells with `Q/W/E`, `A/S/D`, `Z/X/C` to zoom recursively.
