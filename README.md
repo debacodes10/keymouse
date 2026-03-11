@@ -81,7 +81,23 @@ target/release/keymouse
 keymouse
 ```
 
-Run as a managed background process (recommended until `.app` bundle support is added):
+Install a Spotlight-launchable app bundle after `cargo install`:
+
+```bash
+keymouse --install-app
+```
+
+If an existing app bundle is found, Keymouse asks before replacing it.
+
+Remove the app bundle:
+
+```bash
+keymouse --uninstall-app
+```
+
+Keymouse asks for confirmation before uninstalling.
+
+Run as a managed background process:
 
 ```bash
 keymouse --start
@@ -119,10 +135,13 @@ keymouse --restart
 
 ### 2) Grant macOS permissions
 
-Grant permissions to the app that launches Keymouse (usually Terminal/iTerm):
+Grant permissions to the app that launches Keymouse:
 
 - `System Settings` -> `Privacy & Security` -> `Accessibility`
 - `System Settings` -> `Privacy & Security` -> `Input Monitoring`
+
+If launching from Spotlight, this is usually `Keymouse.app`.
+If launching from terminal, this is usually Terminal/iTerm.
 
 ### 3) Toggle mouse mode
 

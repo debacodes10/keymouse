@@ -1,3 +1,4 @@
+mod app_bundle;
 mod config;
 mod grid;
 mod input;
@@ -12,6 +13,34 @@ fn main() {
     let mut args = std::env::args().skip(1);
     match args.next().as_deref() {
         None => menubar::run(),
+        Some("--install-app") => {
+            if let Some(extra) = args.next() {
+                eprintln!("Unexpected argument: {}", extra);
+                print_usage();
+                std::process::exit(1);
+            }
+            match app_bundle::install_app() {
+                Ok(message) => println!("{message}"),
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        Some("--uninstall-app") => {
+            if let Some(extra) = args.next() {
+                eprintln!("Unexpected argument: {}", extra);
+                print_usage();
+                std::process::exit(1);
+            }
+            match app_bundle::uninstall_app() {
+                Ok(message) => println!("{message}"),
+                Err(error) => {
+                    eprintln!("{error}");
+                    std::process::exit(1);
+                }
+            }
+        }
         Some("--start") => {
             if let Some(extra) = args.next() {
                 eprintln!("Unexpected argument: {}", extra);
@@ -107,5 +136,7 @@ fn main() {
 }
 
 fn print_usage() {
-    eprintln!("Usage: keymouse [--start|--stop|--restart|--check-config|--headless]");
+    eprintln!(
+        "Usage: keymouse [--install-app|--uninstall-app|--start|--stop|--restart|--check-config|--headless]"
+    );
 }
