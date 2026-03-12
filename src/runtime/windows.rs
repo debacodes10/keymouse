@@ -16,9 +16,13 @@ use std::collections::HashSet;
 use std::sync::OnceLock;
 use std::thread_local;
 use windows_sys::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
-    VK_LMENU, VK_LSHIFT, VK_MENU, VK_RMENU, VK_RSHIFT, VK_SHIFT,
-};
+
+const VK_SHIFT: i64 = 0x10;
+const VK_MENU: i64 = 0x12;
+const VK_LSHIFT: i64 = 0xA0;
+const VK_RSHIFT: i64 = 0xA1;
+const VK_LMENU: i64 = 0xA4;
+const VK_RMENU: i64 = 0xA5;
 
 static KEY_BINDINGS: OnceLock<KeyBindings> = OnceLock::new();
 static KEYBOARD_HOOK: OnceLock<isize> = OnceLock::new();
@@ -278,14 +282,14 @@ unsafe extern "system" fn keyboard_callback(code: i32, wparam: WPARAM, lparam: L
 fn modifier_active(modifier: Modifier, held_keys: &HashSet<i64>) -> bool {
     match modifier {
         Modifier::Shift => {
-            held_keys.contains(&i64::from(VK_SHIFT))
-                || held_keys.contains(&i64::from(VK_LSHIFT))
-                || held_keys.contains(&i64::from(VK_RSHIFT))
+            held_keys.contains(&VK_SHIFT)
+                || held_keys.contains(&VK_LSHIFT)
+                || held_keys.contains(&VK_RSHIFT)
         }
         Modifier::Option => {
-            held_keys.contains(&i64::from(VK_MENU))
-                || held_keys.contains(&i64::from(VK_LMENU))
-                || held_keys.contains(&i64::from(VK_RMENU))
+            held_keys.contains(&VK_MENU)
+                || held_keys.contains(&VK_LMENU)
+                || held_keys.contains(&VK_RMENU)
         }
     }
 }
