@@ -24,11 +24,10 @@ use windows_sys::Win32::Graphics::Gdi::{
     SelectObject, SetBkMode, SetTextColor, TRANSPARENT, TextOutW,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, GetClientRect, InvalidateRect, LWA_ALPHA, PostQuitMessage,
-    RegisterClassW, SW_HIDE, SW_SHOWNOACTIVATE, SWP_NOACTIVATE, SWP_SHOWWINDOW,
-    SetLayeredWindowAttributes, SetWindowPos, ShowWindow, UpdateWindow, WM_DESTROY, WM_ERASEBKGND,
-    WM_PAINT, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
-    WS_EX_TRANSPARENT, WS_POPUP,
+    CreateWindowExW, DefWindowProcW, GetClientRect, LWA_ALPHA, PostQuitMessage, RegisterClassW,
+    SW_HIDE, SW_SHOWNOACTIVATE, SWP_NOACTIVATE, SWP_SHOWWINDOW, SetLayeredWindowAttributes,
+    SetWindowPos, ShowWindow, WM_DESTROY, WM_ERASEBKGND, WM_PAINT, WNDCLASSW, WS_EX_LAYERED,
+    WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 
 const VK_SHIFT: i64 = 0x10;
@@ -441,7 +440,6 @@ impl Overlay {
                 SWP_NOACTIVATE | SWP_SHOWWINDOW,
             );
             ShowWindow(self.hwnd, SW_SHOWNOACTIVATE);
-            UpdateWindow(self.hwnd);
         }
         self.request_repaint();
     }
@@ -505,13 +503,7 @@ impl Overlay {
     }
 
     fn request_repaint(&self) {
-        if self.hwnd.is_null() {
-            return;
-        }
-        // SAFETY: invalidating our own window handle is safe.
-        unsafe {
-            InvalidateRect(self.hwnd, null_mut(), 1);
-        }
+        // No-op for compatibility: SetWindowPos/ShowWindow path triggers repaint.
     }
 }
 
