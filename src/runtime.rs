@@ -5,7 +5,7 @@ use crate::input::{
     KEYCODE_ESCAPE, display_index_for_keycode, grid_cell_for_keycode, movement_step, scroll_step,
 };
 use crate::overlay::Overlay;
-use crate::platform::{
+use crate::platforms::{
     CFMachPortCreateRunLoopSource, CFRunLoopAddSource, CFRunLoopGetCurrent, CFRunLoopRun,
     CGEventGetFlags, CGEventGetIntegerValueField, CGEventGetLocation, CGEventTapCreate,
     CGEventTapEnable, KEYBOARD_EVENT_KEYCODE, active_displays_sorted, display_for_point,

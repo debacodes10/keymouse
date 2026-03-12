@@ -5,7 +5,7 @@ mod input;
 mod launch_agent;
 mod menubar;
 mod overlay;
-mod platform;
+mod platforms;
 mod process_control;
 mod runtime;
 
