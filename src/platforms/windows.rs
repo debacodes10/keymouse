@@ -19,7 +19,7 @@ pub const KEY_EVENT_UP_TYPES: [u32; 2] = [WM_KEYUP, WM_SYSKEYUP];
 
 pub type KeyboardHookCallback = unsafe extern "system" fn(i32, WPARAM, LPARAM) -> LRESULT;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct Display {
     pub monitor: HMONITOR,
     pub bounds: RECT,
@@ -36,15 +36,15 @@ impl Display {
 
 pub fn install_keyboard_hook(callback: KeyboardHookCallback) -> Result<HHOOK, String> {
     // SAFETY: WH_KEYBOARD_LL callback follows required ABI and lifetime.
-    let hook = unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(callback), 0, 0) };
-    if hook == 0 {
+    let hook = unsafe { SetWindowsHookExW(WH_KEYBOARD_LL, Some(callback), null_mut(), 0) };
+    if hook.is_null() {
         return Err("Failed to install low-level keyboard hook.".to_string());
     }
     Ok(hook)
 }
 
 pub fn uninstall_keyboard_hook(hook: HHOOK) {
-    if hook == 0 {
+    if hook.is_null() {
         return;
     }
     // SAFETY: hook was returned by SetWindowsHookExW.
@@ -55,7 +55,7 @@ pub fn uninstall_keyboard_hook(hook: HHOOK) {
 
 pub fn call_next_keyboard_hook(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     // SAFETY: forwarding event chain per Windows hook contract.
-    unsafe { CallNextHookEx(0, code, wparam, lparam) }
+    unsafe { CallNextHookEx(null_mut(), code, wparam, lparam) }
 }
 
 pub fn keyboard_message_keycode(lparam: LPARAM) -> Option<u32> {
@@ -68,7 +68,7 @@ pub fn keyboard_message_keycode(lparam: LPARAM) -> Option<u32> {
 }
 
 pub fn is_keyboard_action(code: i32) -> bool {
-    code == HC_ACTION
+    code == HC_ACTION as i32
 }
 
 pub fn run_message_loop() -> Result<(), String> {
@@ -76,7 +76,7 @@ pub fn run_message_loop() -> Result<(), String> {
     let mut message: MSG = unsafe { std::mem::zeroed() };
     loop {
         // SAFETY: message pointer is valid for writes.
-        let status = unsafe { GetMessageW(&mut message, 0, 0, 0) };
+        let status = unsafe { GetMessageW(&mut message, null_mut(), 0, 0) };
         match status.cmp(&0) {
             Ordering::Greater => {
                 // SAFETY: valid message from GetMessageW.
@@ -108,7 +108,7 @@ pub fn active_displays_sorted() -> Vec<Display> {
     // SAFETY: callback writes only through LPARAM-provided pointer to monitors vector.
     unsafe {
         EnumDisplayMonitors(
-            0 as HDC,
+            null_mut() as HDC,
             null_mut(),
             Some(enum_monitor_callback),
             (&mut monitors as *mut Vec<Display>) as isize,

@@ -13,6 +13,7 @@ use crate::platforms::{
 use enigo::{Enigo, MouseButton, MouseControllable};
 use std::cell::RefCell;
 use std::collections::HashSet;
+use std::ffi::c_void;
 use std::sync::OnceLock;
 use std::thread_local;
 use windows_sys::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
@@ -25,7 +26,7 @@ const VK_LMENU: i64 = 0xA4;
 const VK_RMENU: i64 = 0xA5;
 
 static KEY_BINDINGS: OnceLock<KeyBindings> = OnceLock::new();
-static KEYBOARD_HOOK: OnceLock<isize> = OnceLock::new();
+static KEYBOARD_HOOK: OnceLock<usize> = OnceLock::new();
 static MOUSE_MODE_LISTENER: OnceLock<fn(bool)> = OnceLock::new();
 
 struct AppState {
@@ -85,7 +86,7 @@ pub fn initialize() {
 
     match install_keyboard_hook(keyboard_callback) {
         Ok(hook) => {
-            let _ = KEYBOARD_HOOK.set(hook);
+            let _ = KEYBOARD_HOOK.set(hook as usize);
         }
         Err(error) => {
             eprintln!("{error}");
@@ -121,7 +122,7 @@ pub fn set_mouse_mode(enabled: bool) {
 pub fn shutdown() {
     set_mouse_mode(false);
     if let Some(hook) = KEYBOARD_HOOK.get() {
-        uninstall_keyboard_hook(*hook);
+        uninstall_keyboard_hook(*hook as *mut c_void);
     }
 }
 
