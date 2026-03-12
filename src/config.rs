@@ -595,13 +595,24 @@ mod tests {
 
     #[test]
     fn parses_a_keycode_without_treating_it_as_invalid() {
+        #[cfg(target_os = "macos")]
         assert_eq!(key_from_string("a"), Some(0));
+        #[cfg(target_os = "windows")]
+        assert_eq!(key_from_string("a"), Some(0x41));
     }
 
     #[test]
     fn supports_function_keys_for_bindings() {
-        assert_eq!(key_from_string("f1"), Some(122));
-        assert_eq!(key_from_string("f12"), Some(111));
+        #[cfg(target_os = "macos")]
+        {
+            assert_eq!(key_from_string("f1"), Some(122));
+            assert_eq!(key_from_string("f12"), Some(111));
+        }
+        #[cfg(target_os = "windows")]
+        {
+            assert_eq!(key_from_string("f1"), Some(0x70));
+            assert_eq!(key_from_string("f12"), Some(0x7B));
+        }
     }
 
     #[test]
