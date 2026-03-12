@@ -186,7 +186,7 @@ dependencies = [
 
 [[package]]
 name = "keymouse"
-version = "0.5.2"
+version = "0.6.1"
 dependencies = [
  "cocoa",
  "core-foundation",
