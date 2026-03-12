@@ -1,16 +1,12 @@
 #[cfg(target_os = "macos")]
-mod mac;
-
+mod macos;
 #[cfg(target_os = "macos")]
-pub use mac::*;
+pub use macos::*;
 
 #[cfg(target_os = "windows")]
 mod windows;
-
 #[cfg(target_os = "windows")]
 pub use windows::*;
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-compile_error!(
-    "Keymouse currently supports only macOS and Windows. Add platform implementations in src/platforms/ for your target OS."
-);
+compile_error!("Keymouse runtime is currently implemented only for macOS and Windows.");

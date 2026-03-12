@@ -1,4 +1,3 @@
-use core_graphics::event::CGKeyCode;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
@@ -176,7 +175,26 @@ impl KeyBindings {
     }
 }
 
-pub fn key_from_string(key: &str) -> Option<CGKeyCode> {
+pub fn key_from_string(key: &str) -> Option<u16> {
+    #[cfg(target_os = "macos")]
+    {
+        key_from_string_macos(key)
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        key_from_string_windows(key)
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        let _ = key;
+        None
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn key_from_string_macos(key: &str) -> Option<u16> {
     match key.trim().to_ascii_lowercase().as_str() {
         "a" => Some(0),
         "s" => Some(1),
@@ -216,6 +234,51 @@ pub fn key_from_string(key: &str) -> Option<CGKeyCode> {
         // Modifiers are represented as flags, but we still accept them here.
         "shift" => Some(56),
         "option" | "alt" => Some(58),
+        _ => None,
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn key_from_string_windows(key: &str) -> Option<u16> {
+    match key.trim().to_ascii_lowercase().as_str() {
+        "a" => Some(0x41),
+        "s" => Some(0x53),
+        "d" => Some(0x44),
+        "f" => Some(0x46),
+        "g" => Some(0x47),
+        "h" => Some(0x48),
+        "b" => Some(0x42),
+        "j" => Some(0x4A),
+        "k" => Some(0x4B),
+        "l" => Some(0x4C),
+        "m" => Some(0x4D),
+        "n" => Some(0x4E),
+        "q" => Some(0x51),
+        "u" => Some(0x55),
+        "w" => Some(0x57),
+        "e" => Some(0x45),
+        "v" => Some(0x56),
+        "z" => Some(0x5A),
+        "x" => Some(0x58),
+        "c" => Some(0x43),
+        ";" | "semicolon" => Some(0xBA),
+        "enter" | "return" => Some(0x0D),
+        "escape" | "esc" => Some(0x1B),
+        "f1" => Some(0x70),
+        "f2" => Some(0x71),
+        "f3" => Some(0x72),
+        "f4" => Some(0x73),
+        "f5" => Some(0x74),
+        "f6" => Some(0x75),
+        "f7" => Some(0x76),
+        "f8" => Some(0x77),
+        "f9" => Some(0x78),
+        "f10" => Some(0x79),
+        "f11" => Some(0x7A),
+        "f12" => Some(0x7B),
+        // Modifiers are represented as flags, but we still accept them here.
+        "shift" => Some(0x10),
+        "option" | "alt" => Some(0x12),
         _ => None,
     }
 }

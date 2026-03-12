@@ -1,5 +1,3 @@
-use core_graphics::display::CGDisplay;
-
 #[derive(Clone, Copy, Debug)]
 pub struct GridBounds {
     pub x: f64,
@@ -9,13 +7,24 @@ pub struct GridBounds {
 }
 
 impl GridBounds {
-    pub fn from_display(display: CGDisplay) -> Self {
+    #[cfg(target_os = "macos")]
+    pub fn from_display(display: core_graphics::display::CGDisplay) -> Self {
         let bounds = display.bounds();
         Self {
             x: bounds.origin.x,
             y: bounds.origin.y,
             width: bounds.size.width,
             height: bounds.size.height,
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn from_rect(x: f64, y: f64, width: f64, height: f64) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
         }
     }
 
