@@ -1,272 +1,203 @@
 # Keymouse
 
-Control your mouse on macOS with fast, Vim-style keyboard navigation.
+Keyboard-driven mouse control for **macOS** and **Windows** with Vim-style navigation.
 
 ![Keymouse Demo](demo.gif)
 
-*Demo: toggling mouse mode, moving with `H J K L`, clicking, and jumping the cursor with the grid system.*
+## Platform Support
+
+- **macOS**: fully supported (menu bar app, start at login, app bundle install)
+- **Windows**: supported runtime for keyboard mouse control and grid overlay (CLI/headless mode)
 
 ## Features
 
-- Global keyboard-driven mouse control on macOS (`CGEventTap`)
-- Menu bar app mode (no dedicated terminal required)
-- Start-at-login toggle from menu bar (`LaunchAgent`)
-- Toggleable mouse mode (configurable `toggle_key`, default: `F8`) so normal typing is unaffected when off
-- Cursor movement with configurable keys (defaults: `H J K L`)
-- Speed modifiers for movement/scroll (defaults: `Shift` fast, `Option/Alt` slow)
-- Scroll control with configurable keys (defaults: `U N B M`)
-- Left/right click from keyboard (defaults: `F` / `D`)
-- Drag toggle to hold/release left mouse button (default: `V`)
-- Recursive 3x3 jump grid with translucent overlay and depth indicator
-- Configurable grid labels, theme presets, and opacity (hot-reloads while running)
-- Multi-monitor aware grid targeting on the display under the cursor
-- Automatic event-tap re-enable if macOS temporarily disables the tap
+- Global keyboard hook for mouse control
+- Toggleable mouse mode (`toggle_key`, default `F8`)
+- Move cursor with configurable keys (default `H J K L`)
+- Scroll with configurable keys (default `U N B M`)
+- Left/right click and drag toggle from keyboard
+- Recursive 3x3 jump grid with monitor switching (`1..9`)
+- Configurable key bindings and modifiers
+- Configurable grid visuals (`theme`, `opacity`, `color`, `labels`)
+
+macOS-only extras:
+
+- Menu bar app (`KM`)
+- Start-at-login toggle from menu bar
+- `--install-app` / `--uninstall-app` app bundle workflow
 
 ## Installation
 
-### Option 1: Install from crates.io (recommended)
+### Option A: Install with Cargo
+
+Requires Rust toolchain (`cargo`) installed.
 
 ```bash
 cargo install keymouse
 ```
 
-Create a macOS app bundle (recommended for Spotlight/Finder launch):
-
-```bash
-keymouse --install-app
-```
-
-Then launch `Keymouse` from Spotlight or from `~/Applications/Keymouse.app`.
-
-You can still run directly from terminal:
+Run:
 
 ```bash
 keymouse
 ```
 
-Both paths launch Keymouse as a macOS menu bar app (`KM`).
+On macOS, this starts the menu bar app by default.
+On Windows, this starts the runtime in headless mode by default.
 
-### Option 2: Download a prebuilt binary from GitHub Releases
+### Option B: Build Standalone Binary from Source
 
-Latest release:
-
-- https://github.com/debacodes10/keymouse/releases/latest
-
-Example (Apple Silicon / arm64):
-
-```bash
-curl -L -o keymouse-macos-arm64.zip https://github.com/debacodes10/keymouse/releases/latest/download/keymouse-macos-arm64.zip
-unzip keymouse-macos-arm64.zip
-chmod +x keymouse-macos-arm64
-./keymouse-macos-arm64
-```
-
-### Option 3: Build from source
-
-Clone the repository:
+Clone and build:
 
 ```bash
 git clone https://github.com/debacodes10/keymouse.git
 cd keymouse
-```
-
-Build a release binary:
-
-```bash
 cargo build --release
 ```
 
-The compiled binary will be available at:
+Output binaries:
+
+- macOS: `target/release/keymouse`
+- Windows: `target\\release\\keymouse.exe`
+
+Run directly:
 
 ```bash
-target/release/keymouse
+# macOS
+./target/release/keymouse
 ```
-
-### Windows build-permission workaround
-
-Windows App Control or Smart App Control can block Cargo from executing build scripts when a repo lives under `Downloads`. Keymouse does not hardcode a machine-specific Cargo target path anymore; instead, use the included wrapper or set an override explicitly.
-
-PowerShell:
 
 ```powershell
-.\scripts\cargo-safe.ps1 run
-.\scripts\cargo-safe.ps1 build --release
+# Windows
+.\target\release\keymouse.exe
 ```
 
-macOS / bash:
+### Option C: Use Prebuilt Release Assets
 
-```bash
-./scripts/cargo-safe.sh run
-./scripts/cargo-safe.sh build --release
-```
+Download from:
 
-Optional explicit override for a trusted executable directory:
+- [GitHub Releases](https://github.com/debacodes10/keymouse/releases)
+
+Unzip and run the binary for your OS/arch.
+
+## Building on Windows (Important)
+
+### 1) Install native build tools
+
+Use **Visual Studio Build Tools 2022** with:
+
+- Desktop development with C++
+- MSVC v143 toolchain
+- Windows 10/11 SDK
+
+Then build from **Developer Command Prompt** or any shell where these exist:
 
 ```powershell
-$env:KEYMOUSE_CARGO_TARGET_DIR="$env:LOCALAPPDATA\\keymouse\\cargo-target"
-.\scripts\cargo-safe.ps1 run
+where cl
+where link
 ```
 
-```bash
-export KEYMOUSE_CARGO_TARGET_DIR="$HOME/.keymouse/cargo-target"
-./scripts/cargo-safe.sh run
+### 2) App Control / WDAC environments
+
+If Windows policy blocks Cargo build scripts (common under `Downloads`), use a trusted path:
+
+- Move repo to `C:\dev\keymouse`
+- Use trusted target dir, e.g. `C:\dev\cargo-target\keymouse`
+
+```powershell
+setx CARGO_TARGET_DIR C:\dev\cargo-target\keymouse
 ```
 
-On Windows, `cargo-safe.ps1` automatically switches builds under `Downloads` to `%LOCALAPPDATA%\keymouse\cargo-target` unless you set `KEYMOUSE_CARGO_TARGET_DIR` yourself. On macOS, normal `cargo run` and `cargo build` continue to use Cargo defaults unless you opt into an override.
+Open a new terminal after `setx`.
 
 ## Usage
 
-### 1) Start Keymouse
+### Start
 
 ```bash
 keymouse
 ```
 
-Install a Spotlight-launchable app bundle after `cargo install`:
+Or from source:
+
+```bash
+cargo run --release
+```
+
+### Main controls (default)
+
+- `F8`: toggle mouse mode
+- `H J K L`: move cursor
+- `Shift`: fast movement/scroll
+- `Option/Alt`: slow movement/scroll
+- `U N B M`: scroll up/down/left/right
+- `F`: left click
+- `D`: right click
+- `V`: toggle drag hold
+
+### Grid mode
+
+- `;`: open grid on active display
+- `1..9`: switch monitor while grid is active
+- `Q/W/E A/S/D Z/X/C`: zoom into cell
+- `Enter`: confirm jump
+- `Esc`: cancel grid
+
+### CLI commands
+
+Cross-platform:
+
+- `--headless`
+- `--check-config`
+- `--help`
+
+macOS-only:
+
+- `--install-app`
+- `--uninstall-app`
+- `--start`
+- `--stop`
+- `--restart`
+
+## macOS Setup
+
+### Permissions
+
+Grant permissions to the app that launches Keymouse:
+
+- System Settings -> Privacy & Security -> Accessibility
+- System Settings -> Privacy & Security -> Input Monitoring
+
+If launched from terminal, grant Terminal/iTerm.
+If launched from app bundle, grant `Keymouse.app`.
+
+### App bundle workflow
 
 ```bash
 keymouse --install-app
 ```
 
-If an existing app bundle is found, Keymouse asks before replacing it.
+Launch from Spotlight (`Keymouse`) or `~/Applications/Keymouse.app`.
 
-Launch from:
-
-- Spotlight: type `Keymouse`
-- Finder: `~/Applications/Keymouse.app`
-
-Remove the app bundle:
+Remove bundle:
 
 ```bash
 keymouse --uninstall-app
 ```
 
-Keymouse asks for confirmation before uninstalling.
-
-Run as a managed background process:
-
-```bash
-keymouse --start
-```
-
-If you built from source:
-
-```bash
-./target/release/keymouse
-```
-
-Validate your config without starting the event loop:
-
-```bash
-keymouse --check-config
-```
-
-See all available commands anytime:
-
-```bash
-keymouse --help
-```
-
-Run without menu bar UI (legacy headless mode):
-
-```bash
-keymouse --headless
-```
-
-Stop the managed background process:
-
-```bash
-keymouse --stop
-```
-
-Restart the managed background process:
-
-```bash
-keymouse --restart
-```
-
-### 2) Grant macOS permissions
-
-Grant permissions to the app that launches Keymouse:
-
-- `System Settings` -> `Privacy & Security` -> `Accessibility`
-- `System Settings` -> `Privacy & Security` -> `Input Monitoring`
-
-If launching from Spotlight, this is usually `Keymouse.app`.
-If launching from terminal, this is usually Terminal/iTerm.
-
-### 3) Easy access
-
-- Keep using Spotlight (`Cmd+Space`, then type `Keymouse`).
-- Optional: in Finder, open `~/Applications`, right-click `Keymouse.app`, then choose `Add to Dock`.
-- To auto-start on login, open the menu bar item `KM` -> `Start at Login`.
-
-### 4) Toggle mouse mode
-
-- Press your configured `toggle_key` to turn mouse mode on/off (default: `F8`).
-- Or use the menu bar item: `KM` -> `Turn Mouse Mode On/Off`.
-- When mouse mode is **off**, all keys behave normally.
-- When mouse mode is **on**, keydown/keyup events are intercepted by Keymouse.
-
-### 5) Control the pointer
-
-- Move: `H J K L` (hold keys for continuous movement)
-- Scroll: `U N B M`
-- Click: `F` (left), `D` (right)
-- Drag: `V` to hold left mouse button, `V` again to release
-- Modifiers: `Shift` = fast, `Option/Alt` = slow
-
-### 6) Use jump grid mode
-
-- Press `;` (default `grid_key`) to show the 3x3 grid on the display under the cursor.
-- While grid mode is open, press `1..9` to switch to monitor 1..9 (ordered left-to-right, then top-to-bottom).
-- Select cells with `Q/W/E`, `A/S/D`, `Z/X/C` to zoom recursively.
-- Optional alternates in grid mode: `F` maps to middle-left, `G` maps to center.
-- Press `Enter` to move cursor to the selected region center.
-- Press `Esc` to cancel grid mode.
-
-### Default keymap
-
-| Key | Action |
-| --- | --- |
-| `F8` | Toggle mouse mode |
-| `H J K L` | Move cursor |
-| `Shift` + move/scroll keys | Fast movement/scroll |
-| `Option` + move/scroll keys | Slow movement/scroll |
-| `U N B M` | Scroll up/down/left/right |
-| `F` | Left click |
-| `D` | Right click |
-| `V` | Toggle drag (left button hold/release) |
-| `;` | Enter grid mode |
-| `1..9` (in grid mode) | Switch active monitor |
-| `Q/W/E/A/S/D/Z/X/C` | Select grid cell recursively |
-| `Enter` | Confirm grid jump |
-| `Esc` | Cancel grid mode |
-
-### Quit
-
-Use `Ctrl+C` in the terminal running Keymouse.
-
-If started with `--start`, stop it with:
-
-```bash
-keymouse --stop
-```
-
 ## Configuration
 
-Keymouse loads configuration from:
+Keymouse loads `config.toml` from OS config directory:
 
-```text
-~/Library/Application Support/keymouse/config.toml
-```
+- macOS: `~/Library/Application Support/keymouse/config.toml`
+- Windows: `%APPDATA%\\keymouse\\config.toml`
 
-If the file is missing, Keymouse uses built-in defaults. At startup, it also writes an example file to that path so you can customize bindings.
+If missing, defaults are used and an example file is written.
 
-Example `config.toml`:
+Example:
 
 ```toml
-toggle_key = "f1"
+toggle_key = "f8"
 
 movement_up = "k"
 movement_down = "j"
@@ -294,42 +225,22 @@ grid_color = "#4fd1ff"
 grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
 ```
 
-Supported key names for bindings are currently:
+Supported key names include:
 
-- Letters used by default (`a b c d e f g h j k l m n q s u v w x z`)
-- `;` (or `"semicolon"`), `"enter"`/`"return"`, `"escape"`/`"esc"`, function keys (`"f1"` ... `"f12"`)
-- Modifiers: `"shift"` and `"option"`/`"alt"` (for modifier fields)
-
-Invalid or conflicting config values now produce startup validation errors.
-
-Grid overlay visual options:
-
-- `grid_theme`: `classic`, `midnight`, `ocean`, `forest`
-- `grid_opacity`: `0.0` to `1.0`
-- `grid_color`: optional accent color (`#RRGGBB`) for grid border/depth tint
-- `grid_labels`: exactly 9 strings (visual labels only)
-
-Keymouse hot-reloads these grid visual options when `config.toml` changes.
+- letters used by defaults (`a b c d e f g h j k l m n q s u v w x z`)
+- `;` / `semicolon`, `enter`, `return`, `escape`, `esc`
+- `f1` ... `f12`
+- modifiers: `shift`, `option`, `alt`
 
 ## Troubleshooting
 
-- If Keymouse exits with an event tap error, re-check Accessibility and Input Monitoring permissions for the launching app.
-- If keyboard control stops after long inactivity or heavy system load, macOS may have disabled the tap; Keymouse now attempts to re-enable it automatically.
-- If `Keymouse.app` asks for Rosetta on Apple Silicon, reinstall Keymouse from a native (non-Rosetta) terminal, then rerun `keymouse --install-app`.
-
-## Roadmap
-
-- [x] Vim-style cursor movement
-- [x] Grid jump navigation
-- [x] Multi-monitor support
-- [x] Recursive grid zoom
-- [x] Custom key bindings
-- [x] Configuration file
-- [ ] Homebrew installation
+- macOS event tap failure: re-check Accessibility/Input Monitoring permissions.
+- Windows `link.exe` / `cl.exe` not found: install VS Build Tools + MSVC toolchain.
+- Windows build blocked by policy (`os error 4551`): build from trusted path and set `CARGO_TARGET_DIR`.
 
 ## Contributing
 
-Contributions, suggestions, and feature requests are welcome. Open an issue to discuss ideas, or submit a pull request with a focused change.
+Contributions and focused PRs are welcome.
 
 ## License
 
