@@ -1,4 +1,6 @@
 use crate::config::{KeyBindings, Modifier};
+#[cfg(target_os = "windows")]
+use std::collections::HashSet;
 
 #[cfg(target_os = "macos")]
 pub const KEYCODE_D: i64 = 2;
@@ -121,8 +123,6 @@ pub const KEYCODE_C: i64 = 8;
 #[cfg(target_os = "windows")]
 pub const KEYCODE_C: i64 = 0x43;
 
-const EVENT_FLAG_MASK_SHIFT: u64 = 1 << 17;
-const EVENT_FLAG_MASK_OPTION: u64 = 1 << 19;
 const NORMAL_SPEED: i32 = 20;
 const FAST_SPEED: i32 = 120;
 const SLOW_SPEED: i32 = 5;
@@ -172,27 +172,6 @@ pub fn display_index_for_keycode(keycode: i64) -> Option<usize> {
     }
 }
 
-pub fn movement_step(flags: u64, bindings: KeyBindings) -> i32 {
-    if modifier_active(flags, bindings.fast_modifier) {
-        FAST_SPEED
-    } else if modifier_active(flags, bindings.slow_modifier) {
-        SLOW_SPEED
-    } else {
-        NORMAL_SPEED
-    }
-}
-
-pub fn scroll_step(flags: u64, bindings: KeyBindings) -> i32 {
-    if modifier_active(flags, bindings.fast_modifier) {
-        FAST_SCROLL
-    } else if modifier_active(flags, bindings.slow_modifier) {
-        SLOW_SCROLL
-    } else {
-        NORMAL_SCROLL
-    }
-}
-
-#[cfg(target_os = "windows")]
 pub fn movement_step_from_modifiers(fast_active: bool, slow_active: bool) -> i32 {
     if fast_active {
         FAST_SPEED
@@ -203,7 +182,6 @@ pub fn movement_step_from_modifiers(fast_active: bool, slow_active: bool) -> i32
     }
 }
 
-#[cfg(target_os = "windows")]
 pub fn scroll_step_from_modifiers(fast_active: bool, slow_active: bool) -> i32 {
     if fast_active {
         FAST_SCROLL
@@ -214,9 +192,84 @@ pub fn scroll_step_from_modifiers(fast_active: bool, slow_active: bool) -> i32 {
     }
 }
 
-fn modifier_active(flags: u64, modifier: Modifier) -> bool {
+#[cfg(target_os = "macos")]
+const EVENT_FLAG_MASK_SHIFT: u64 = 1 << 17;
+#[cfg(target_os = "macos")]
+const EVENT_FLAG_MASK_OPTION: u64 = 1 << 19;
+
+#[cfg(target_os = "windows")]
+const VK_SHIFT: i64 = 0x10;
+#[cfg(target_os = "windows")]
+const VK_MENU: i64 = 0x12;
+#[cfg(target_os = "windows")]
+const VK_LSHIFT: i64 = 0xA0;
+#[cfg(target_os = "windows")]
+const VK_RSHIFT: i64 = 0xA1;
+#[cfg(target_os = "windows")]
+const VK_LMENU: i64 = 0xA4;
+#[cfg(target_os = "windows")]
+const VK_RMENU: i64 = 0xA5;
+
+#[cfg(target_os = "macos")]
+pub fn modifier_states_from_event_flags(flags: u64, bindings: KeyBindings) -> (bool, bool) {
+    (
+        event_flag_modifier_active(flags, bindings.fast_modifier),
+        event_flag_modifier_active(flags, bindings.slow_modifier),
+    )
+}
+
+#[cfg(target_os = "windows")]
+pub fn modifier_states_from_held_keys(
+    bindings: KeyBindings,
+    held_keys: &HashSet<i64>,
+) -> (bool, bool) {
+    (
+        held_key_modifier_active(bindings.fast_modifier, held_keys),
+        held_key_modifier_active(bindings.slow_modifier, held_keys),
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn event_flag_modifier_active(flags: u64, modifier: Modifier) -> bool {
     match modifier {
         Modifier::Shift => (flags & EVENT_FLAG_MASK_SHIFT) != 0,
         Modifier::Option => (flags & EVENT_FLAG_MASK_OPTION) != 0,
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn held_key_modifier_active(modifier: Modifier, held_keys: &HashSet<i64>) -> bool {
+    match modifier {
+        Modifier::Shift => {
+            held_keys.contains(&VK_SHIFT)
+                || held_keys.contains(&VK_LSHIFT)
+                || held_keys.contains(&VK_RSHIFT)
+        }
+        Modifier::Option => {
+            held_keys.contains(&VK_MENU)
+                || held_keys.contains(&VK_LMENU)
+                || held_keys.contains(&VK_RMENU)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{movement_step_from_modifiers, scroll_step_from_modifiers};
+
+    #[test]
+    fn movement_step_prioritizes_fast_modifier() {
+        assert_eq!(movement_step_from_modifiers(true, true), 120);
+        assert_eq!(movement_step_from_modifiers(true, false), 120);
+        assert_eq!(movement_step_from_modifiers(false, true), 5);
+        assert_eq!(movement_step_from_modifiers(false, false), 20);
+    }
+
+    #[test]
+    fn scroll_step_prioritizes_fast_modifier() {
+        assert_eq!(scroll_step_from_modifiers(true, true), 24);
+        assert_eq!(scroll_step_from_modifiers(true, false), 24);
+        assert_eq!(scroll_step_from_modifiers(false, true), 1);
+        assert_eq!(scroll_step_from_modifiers(false, false), 8);
     }
 }

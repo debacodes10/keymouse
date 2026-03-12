@@ -1,9 +1,9 @@
-use crate::config::{self, KeyBindings, Modifier};
+use crate::config::{self, KeyBindings};
 use crate::grid::bounds::GridBounds;
 use crate::grid::recursive::RecursiveGrid;
 use crate::input::{
-    KEYCODE_ESCAPE, display_index_for_keycode, grid_cell_for_keycode, movement_step_from_modifiers,
-    scroll_step_from_modifiers,
+    KEYCODE_ESCAPE, display_index_for_keycode, grid_cell_for_keycode,
+    modifier_states_from_held_keys, movement_step_from_modifiers, scroll_step_from_modifiers,
 };
 use crate::platforms::{
     KEY_EVENT_DOWN_TYPES, KEY_EVENT_UP_TYPES, call_next_keyboard_hook, cursor_position,
@@ -30,12 +30,6 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP,
 };
 
-const VK_SHIFT: i64 = 0x10;
-const VK_MENU: i64 = 0x12;
-const VK_LSHIFT: i64 = 0xA0;
-const VK_RSHIFT: i64 = 0xA1;
-const VK_LMENU: i64 = 0xA4;
-const VK_RMENU: i64 = 0xA5;
 const CONFIG_POLL_INTERVAL: Duration = Duration::from_millis(500);
 
 static KEY_BINDINGS: OnceLock<KeyBindings> = OnceLock::new();
@@ -265,8 +259,8 @@ unsafe extern "system" fn keyboard_callback(code: i32, wparam: WPARAM, lparam: L
         }
 
         if is_key_down {
-            let fast_active = modifier_active(bindings.fast_modifier, &state.held_keys);
-            let slow_active = modifier_active(bindings.slow_modifier, &state.held_keys);
+            let (fast_active, slow_active) =
+                modifier_states_from_held_keys(bindings, &state.held_keys);
             let move_step = movement_step_from_modifiers(fast_active, slow_active);
             let scroll_step = scroll_step_from_modifiers(fast_active, slow_active);
             match keycode {
@@ -320,21 +314,6 @@ unsafe extern "system" fn keyboard_callback(code: i32, wparam: WPARAM, lparam: L
 
         1
     })
-}
-
-fn modifier_active(modifier: Modifier, held_keys: &HashSet<i64>) -> bool {
-    match modifier {
-        Modifier::Shift => {
-            held_keys.contains(&VK_SHIFT)
-                || held_keys.contains(&VK_LSHIFT)
-                || held_keys.contains(&VK_RSHIFT)
-        }
-        Modifier::Option => {
-            held_keys.contains(&VK_MENU)
-                || held_keys.contains(&VK_LMENU)
-                || held_keys.contains(&VK_RMENU)
-        }
-    }
 }
 
 fn start_grid_on_display(state: &mut AppState, rect: RECT) {

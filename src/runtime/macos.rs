@@ -2,7 +2,8 @@ use crate::config::{self, KeyBindings};
 use crate::grid::bounds::GridBounds;
 use crate::grid::recursive::RecursiveGrid;
 use crate::input::{
-    KEYCODE_ESCAPE, display_index_for_keycode, grid_cell_for_keycode, movement_step, scroll_step,
+    KEYCODE_ESCAPE, display_index_for_keycode, grid_cell_for_keycode,
+    modifier_states_from_event_flags, movement_step_from_modifiers, scroll_step_from_modifiers,
 };
 use crate::overlay::Overlay;
 use crate::platforms::{
@@ -276,8 +277,9 @@ unsafe extern "C" fn keyboard_callback(
         }
 
         if is_key_down {
-            let move_step = movement_step(flags, bindings);
-            let scroll_step = scroll_step(flags, bindings);
+            let (fast_active, slow_active) = modifier_states_from_event_flags(flags, bindings);
+            let move_step = movement_step_from_modifiers(fast_active, slow_active);
+            let scroll_step = scroll_step_from_modifiers(fast_active, slow_active);
             match keycode {
                 key if key == bindings.movement_left => {
                     state.enigo.mouse_move_relative(-move_step, 0);
