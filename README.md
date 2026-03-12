@@ -82,6 +82,38 @@ The compiled binary will be available at:
 target/release/keymouse
 ```
 
+### Windows build-permission workaround
+
+Windows App Control or Smart App Control can block Cargo from executing build scripts when a repo lives under `Downloads`. Keymouse does not hardcode a machine-specific Cargo target path anymore; instead, use the included wrapper or set an override explicitly.
+
+PowerShell:
+
+```powershell
+.\scripts\cargo-safe.ps1 run
+.\scripts\cargo-safe.ps1 build --release
+```
+
+macOS / bash:
+
+```bash
+./scripts/cargo-safe.sh run
+./scripts/cargo-safe.sh build --release
+```
+
+Optional explicit override for a trusted executable directory:
+
+```powershell
+$env:KEYMOUSE_CARGO_TARGET_DIR="$env:LOCALAPPDATA\\keymouse\\cargo-target"
+.\scripts\cargo-safe.ps1 run
+```
+
+```bash
+export KEYMOUSE_CARGO_TARGET_DIR="$HOME/.keymouse/cargo-target"
+./scripts/cargo-safe.sh run
+```
+
+On Windows, `cargo-safe.ps1` automatically switches builds under `Downloads` to `%LOCALAPPDATA%\keymouse\cargo-target` unless you set `KEYMOUSE_CARGO_TARGET_DIR` yourself. On macOS, normal `cargo run` and `cargo build` continue to use Cargo defaults unless you opt into an override.
+
 ## Usage
 
 ### 1) Start Keymouse
