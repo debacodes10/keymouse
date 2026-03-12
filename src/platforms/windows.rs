@@ -12,7 +12,6 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 
 pub const MAX_DISPLAYS: usize = 16;
-pub const KEYBOARD_EVENT_KEYCODE: u32 = 0;
 
 pub const KEY_EVENT_DOWN_TYPES: [u32; 2] = [WM_KEYDOWN, WM_SYSKEYDOWN];
 pub const KEY_EVENT_UP_TYPES: [u32; 2] = [WM_KEYUP, WM_SYSKEYUP];
@@ -140,7 +139,7 @@ unsafe extern "system" fn enum_monitor_callback(
         return 0;
     }
 
-    let displays = &mut *(lparam as *mut Vec<Display>);
+    let displays = unsafe { &mut *(lparam as *mut Vec<Display>) };
     let mut info = MONITORINFOEXW {
         monitorInfo: windows_sys::Win32::Graphics::Gdi::MONITORINFO {
             cbSize: size_of::<MONITORINFOEXW>() as u32,
@@ -161,10 +160,12 @@ unsafe extern "system" fn enum_monitor_callback(
         szDevice: [0; 32],
     };
 
-    if GetMonitorInfoW(
-        monitor,
-        &mut info as *mut MONITORINFOEXW as *mut windows_sys::Win32::Graphics::Gdi::MONITORINFO,
-    ) == 0
+    if unsafe {
+        GetMonitorInfoW(
+            monitor,
+            &mut info as *mut MONITORINFOEXW as *mut windows_sys::Win32::Graphics::Gdi::MONITORINFO,
+        )
+    } == 0
     {
         return 1;
     }
