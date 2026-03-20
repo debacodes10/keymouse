@@ -207,10 +207,14 @@ fn cleanup_stale_pid_file() -> Result<(), String> {
     let Some(pid) = read_pid_file()? else {
         return Ok(());
     };
-    if !is_process_running(pid) {
+    if should_remove_stale_pid_file(is_process_running(pid), is_expected_managed_process(pid)) {
         remove_pid_file_if_exists()?;
     }
     Ok(())
+}
+
+fn should_remove_stale_pid_file(process_running: bool, expected_managed_process: bool) -> bool {
+    !process_running || !expected_managed_process
 }
 
 fn remove_pid_file_if_exists() -> Result<(), String> {
@@ -234,4 +238,25 @@ fn pid_file_path() -> PathBuf {
     path.push("keymouse");
     path.push(PID_FILENAME);
     path
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_remove_stale_pid_file;
+
+    #[test]
+    fn removes_pid_file_for_missing_process() {
+        assert!(should_remove_stale_pid_file(false, false));
+        assert!(should_remove_stale_pid_file(false, true));
+    }
+
+    #[test]
+    fn removes_pid_file_for_foreign_running_process() {
+        assert!(should_remove_stale_pid_file(true, false));
+    }
+
+    #[test]
+    fn keeps_pid_file_for_expected_managed_process() {
+        assert!(!should_remove_stale_pid_file(true, true));
+    }
 }

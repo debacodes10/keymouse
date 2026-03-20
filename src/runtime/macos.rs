@@ -238,16 +238,14 @@ unsafe extern "C" fn keyboard_callback(
         }
 
         if state.grid.is_active() {
-            if is_key_down {
-                if let Some(display_index) = display_index_for_keycode(keycode) {
-                    let displays = active_displays_sorted();
-                    if let Some(display) = displays.get(display_index) {
-                        // SAFETY: event is provided by Quartz for this callback invocation.
-                        let cursor_point = unsafe { CGEventGetLocation(event) };
-                        start_grid_on_display(&mut state, *display, cursor_point);
-                    }
-                    return ptr::null_mut();
+            if is_key_down && let Some(display_index) = display_index_for_keycode(keycode) {
+                let displays = active_displays_sorted();
+                if let Some(display) = displays.get(display_index) {
+                    // SAFETY: event is provided by Quartz for this callback invocation.
+                    let cursor_point = unsafe { CGEventGetLocation(event) };
+                    start_grid_on_display(&mut state, *display, cursor_point);
                 }
+                return ptr::null_mut();
             }
 
             if is_first_keydown {
@@ -335,15 +333,16 @@ unsafe extern "C" fn keyboard_callback(
 }
 
 fn maybe_reload_grid_overlay_config(state: &mut AppState) {
-    if state.last_config_poll.elapsed() < CONFIG_POLL_INTERVAL {
-        return;
-    }
-    state.last_config_poll = Instant::now();
-
     let current_modified = current_config_modified_time();
-    if current_modified == state.config_last_modified {
+    if !should_reload_config(
+        state.last_config_poll.elapsed(),
+        current_modified,
+        state.config_last_modified,
+    ) {
         return;
     }
+
+    state.last_config_poll = Instant::now();
     state.config_last_modified = current_modified;
 
     match config::load_config_for_reload() {
@@ -385,4 +384,50 @@ fn current_config_modified_time() -> Option<SystemTime> {
     fs::metadata(config::config_path())
         .ok()
         .and_then(|metadata| metadata.modified().ok())
+}
+
+fn should_reload_config(
+    elapsed_since_last_poll: Duration,
+    current_modified: Option<SystemTime>,
+    previous_modified: Option<SystemTime>,
+) -> bool {
+    elapsed_since_last_poll >= CONFIG_POLL_INTERVAL && current_modified != previous_modified
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_reload_config;
+    use std::time::{Duration, SystemTime};
+
+    #[test]
+    fn skips_reload_before_poll_interval() {
+        let now = SystemTime::UNIX_EPOCH + Duration::from_secs(2);
+        let previous = SystemTime::UNIX_EPOCH + Duration::from_secs(1);
+        assert!(!should_reload_config(
+            Duration::from_millis(499),
+            Some(now),
+            Some(previous)
+        ));
+    }
+
+    #[test]
+    fn skips_reload_when_timestamp_has_not_changed() {
+        let timestamp = SystemTime::UNIX_EPOCH + Duration::from_secs(2);
+        assert!(!should_reload_config(
+            Duration::from_millis(500),
+            Some(timestamp),
+            Some(timestamp),
+        ));
+    }
+
+    #[test]
+    fn reloads_when_poll_interval_elapsed_and_timestamp_changed() {
+        let current = SystemTime::UNIX_EPOCH + Duration::from_secs(2);
+        let previous = SystemTime::UNIX_EPOCH + Duration::from_secs(1);
+        assert!(should_reload_config(
+            Duration::from_millis(500),
+            Some(current),
+            Some(previous),
+        ));
+    }
 }

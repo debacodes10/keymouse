@@ -563,7 +563,7 @@ fn labels_from_vec(values: &[String]) -> Option<[String; GRID_LABEL_COUNT]> {
         return None;
     }
 
-    let labels = values.iter().cloned().collect::<Vec<_>>();
+    let labels = values.to_vec();
     labels.try_into().ok()
 }
 

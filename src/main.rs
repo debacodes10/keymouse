@@ -104,7 +104,12 @@ fn main() {
 }
 
 fn print_usage() {
-    eprintln!(
+    eprintln!("{}", usage_text());
+}
+
+fn usage_text() -> &'static str {
+    #[cfg(target_os = "macos")]
+    {
         "Keymouse - keyboard mouse control
 
 Usage:
@@ -125,7 +130,25 @@ Examples:
   keymouse --install-app
   keymouse --start
   keymouse --check-config"
-    );
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        "Keymouse - keyboard mouse control
+
+Usage:
+  keymouse                       Start app (platform-specific default)
+  keymouse [command]
+
+Commands:
+  --check-config     Validate config file and exit
+  --headless         Run without menu bar UI
+  --help, -h         Show this help
+
+Examples:
+  keymouse --headless
+  keymouse --check-config"
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -250,4 +273,31 @@ fn run_managed() {
 fn unsupported_flag(flag: &str) {
     eprintln!("{flag} is only supported on macOS.");
     std::process::exit(1);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::usage_text;
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn macos_usage_lists_managed_commands() {
+        let usage = usage_text();
+        assert!(usage.contains("--install-app"));
+        assert!(usage.contains("--start"));
+        assert!(usage.contains("--stop"));
+        assert!(usage.contains("--restart"));
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn windows_usage_omits_macos_only_commands() {
+        let usage = usage_text();
+        assert!(!usage.contains("--install-app"));
+        assert!(!usage.contains("--start"));
+        assert!(!usage.contains("--stop"));
+        assert!(!usage.contains("--restart"));
+        assert!(usage.contains("--headless"));
+        assert!(usage.contains("--check-config"));
+    }
 }

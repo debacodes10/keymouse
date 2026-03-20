@@ -330,15 +330,16 @@ fn start_grid_on_display(state: &mut AppState, rect: RECT) {
 }
 
 fn maybe_reload_grid_overlay_config(state: &mut AppState) {
-    if state.last_config_poll.elapsed() < CONFIG_POLL_INTERVAL {
-        return;
-    }
-    state.last_config_poll = Instant::now();
-
     let current_modified = current_config_modified_time();
-    if current_modified == state.config_last_modified {
+    if !should_reload_config(
+        state.last_config_poll.elapsed(),
+        current_modified,
+        state.config_last_modified,
+    ) {
         return;
     }
+
+    state.last_config_poll = Instant::now();
     state.config_last_modified = current_modified;
 
     match config::load_config_for_reload() {
@@ -367,6 +368,52 @@ fn current_config_modified_time() -> Option<SystemTime> {
     std::fs::metadata(config::config_path())
         .ok()
         .and_then(|metadata| metadata.modified().ok())
+}
+
+fn should_reload_config(
+    elapsed_since_last_poll: Duration,
+    current_modified: Option<SystemTime>,
+    previous_modified: Option<SystemTime>,
+) -> bool {
+    elapsed_since_last_poll >= CONFIG_POLL_INTERVAL && current_modified != previous_modified
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_reload_config;
+    use std::time::{Duration, SystemTime};
+
+    #[test]
+    fn skips_reload_before_poll_interval() {
+        let now = SystemTime::UNIX_EPOCH + Duration::from_secs(2);
+        let previous = SystemTime::UNIX_EPOCH + Duration::from_secs(1);
+        assert!(!should_reload_config(
+            Duration::from_millis(499),
+            Some(now),
+            Some(previous)
+        ));
+    }
+
+    #[test]
+    fn skips_reload_when_timestamp_has_not_changed() {
+        let timestamp = SystemTime::UNIX_EPOCH + Duration::from_secs(2);
+        assert!(!should_reload_config(
+            Duration::from_millis(500),
+            Some(timestamp),
+            Some(timestamp),
+        ));
+    }
+
+    #[test]
+    fn reloads_when_poll_interval_elapsed_and_timestamp_changed() {
+        let current = SystemTime::UNIX_EPOCH + Duration::from_secs(2);
+        let previous = SystemTime::UNIX_EPOCH + Duration::from_secs(1);
+        assert!(should_reload_config(
+            Duration::from_millis(500),
+            Some(current),
+            Some(previous),
+        ));
+    }
 }
 
 struct Overlay {
