@@ -31,6 +31,12 @@ static KEY_BINDINGS: OnceLock<KeyBindings> = OnceLock::new();
 static EVENT_TAP: OnceLock<usize> = OnceLock::new();
 static MOUSE_MODE_LISTENER: OnceLock<fn(bool)> = OnceLock::new();
 const CONFIG_POLL_INTERVAL: Duration = Duration::from_millis(500);
+const HUD_ACTION_DURATION: Duration = Duration::from_millis(1400);
+const HUD_UNKNOWN_KEY_HINT_COOLDOWN: Duration = Duration::from_millis(900);
+
+unsafe extern "C" {
+    fn NSBeep();
+}
 
 struct AppState {
     enigo: Enigo,
@@ -40,9 +46,13 @@ struct AppState {
     overlay: Overlay,
     held_keys: HashSet<i64>,
     grid_overlay_settings: config::GridOverlaySettings,
+    hud_settings: config::HudSettings,
     config_last_modified: Option<SystemTime>,
     last_config_poll: Instant,
     last_reload_error: Option<String>,
+    last_action_message: Option<String>,
+    last_action_until: Option<Instant>,
+    last_unknown_hint_at: Option<Instant>,
 }
 
 impl AppState {
@@ -50,6 +60,8 @@ impl AppState {
         let mut overlay = Overlay::new();
         let grid_overlay_settings = config::Config::default().grid_overlay_settings();
         overlay.apply_settings(grid_overlay_settings.clone());
+        let hud_settings = config::Config::default().hud_settings();
+        overlay.apply_hud_settings(hud_settings);
 
         Self {
             enigo: Enigo::new(),
@@ -59,9 +71,13 @@ impl AppState {
             overlay,
             held_keys: HashSet::new(),
             grid_overlay_settings,
+            hud_settings,
             config_last_modified: None,
             last_config_poll: Instant::now(),
             last_reload_error: None,
+            last_action_message: None,
+            last_action_until: None,
+            last_unknown_hint_at: None,
         }
     }
 
@@ -85,6 +101,11 @@ fn apply_mouse_mode_state(state: &mut AppState, enabled: bool) {
         state.overlay.hide();
         state.release_drag_if_active();
         state.held_keys.clear();
+        state.last_action_message = None;
+        state.last_action_until = None;
+        state.last_unknown_hint_at = None;
+    } else {
+        update_hud_overlay(state);
     }
     if changed && let Some(listener) = MOUSE_MODE_LISTENER.get() {
         listener(enabled);
@@ -99,6 +120,7 @@ pub fn initialize() {
     let config = config::load_config();
     let toggle_key_name = config.toggle_key.trim().to_ascii_lowercase();
     let initial_overlay_settings = config.grid_overlay_settings();
+    let initial_hud_settings = config.hud_settings();
     let initial_modified = current_config_modified_time();
     let bindings = KeyBindings::from_config(&config);
     let _ = KEY_BINDINGS.set(bindings);
@@ -107,6 +129,8 @@ pub fn initialize() {
         let mut state = cell.borrow_mut();
         state.grid_overlay_settings = initial_overlay_settings.clone();
         state.overlay.apply_settings(initial_overlay_settings);
+        state.hud_settings = initial_hud_settings;
+        state.overlay.apply_hud_settings(initial_hud_settings);
         state.config_last_modified = initial_modified;
     });
 
@@ -210,6 +234,9 @@ unsafe extern "C" fn keyboard_callback(
             .get()
             .expect("key bindings must be initialized");
         maybe_reload_grid_overlay_config(&mut state);
+        if state.mouse_mode {
+            update_hud_overlay(&mut state);
+        }
         let is_key_down = matches!(event_type, CGEventType::KeyDown);
         let is_first_keydown = if is_key_down {
             state.held_keys.insert(keycode)
@@ -234,6 +261,8 @@ unsafe extern "C" fn keyboard_callback(
             let cursor_point = unsafe { CGEventGetLocation(event) };
             let display = display_for_point(cursor_point);
             start_grid_on_display(&mut state, display, cursor_point);
+            record_hud_action(&mut state, "Grid opened");
+            update_hud_overlay(&mut state);
             return ptr::null_mut();
         }
 
@@ -253,14 +282,18 @@ unsafe extern "C" fn keyboard_callback(
                     if let Some(final_bounds) = state.grid.confirm() {
                         let (target_x, target_y) = final_bounds.center();
                         state.enigo.mouse_move_to(target_x, target_y);
+                        record_hud_action(&mut state, "Grid confirmed");
                     }
-                    state.overlay.hide();
+                    state.overlay.hide_grid();
+                    update_hud_overlay(&mut state);
                     return ptr::null_mut();
                 }
 
                 if keycode == KEYCODE_ESCAPE {
                     state.grid.cancel();
-                    state.overlay.hide();
+                    state.overlay.hide_grid();
+                    record_hud_action(&mut state, "Grid cancelled");
+                    update_hud_overlay(&mut state);
                     return ptr::null_mut();
                 }
 
@@ -269,8 +302,12 @@ unsafe extern "C" fn keyboard_callback(
                     if let Some((bounds, depth)) = state.grid.render_state() {
                         state.overlay.show_or_update(bounds, depth);
                     }
+                    record_hud_action(&mut state, "Grid zoom");
+                } else if is_first_keydown {
+                    maybe_record_unknown_key_hint(&mut state, keycode, bindings);
                 }
             }
+            update_hud_overlay(&mut state);
             return ptr::null_mut();
         }
 
@@ -278,54 +315,83 @@ unsafe extern "C" fn keyboard_callback(
             let (fast_active, slow_active) = modifier_states_from_event_flags(flags, bindings);
             let move_step = movement_step_from_modifiers(fast_active, slow_active);
             let scroll_step = scroll_step_from_modifiers(fast_active, slow_active);
+            let mut recognized_action = false;
             match keycode {
                 key if key == bindings.movement_left => {
                     state.enigo.mouse_move_relative(-move_step, 0);
+                    recognized_action = true;
+                    record_hud_action(&mut state, "Move left");
                 }
                 key if key == bindings.movement_down => {
                     state.enigo.mouse_move_relative(0, move_step);
+                    recognized_action = true;
+                    record_hud_action(&mut state, "Move down");
                 }
                 key if key == bindings.movement_up => {
                     state.enigo.mouse_move_relative(0, -move_step);
+                    recognized_action = true;
+                    record_hud_action(&mut state, "Move up");
                 }
                 key if key == bindings.movement_right => {
                     state.enigo.mouse_move_relative(move_step, 0);
+                    recognized_action = true;
+                    record_hud_action(&mut state, "Move right");
                 }
                 key if key == bindings.scroll_up => {
                     state.enigo.mouse_scroll_y(-scroll_step);
+                    recognized_action = true;
+                    record_hud_action(&mut state, "Scroll up");
                 }
                 key if key == bindings.scroll_down => {
                     state.enigo.mouse_scroll_y(scroll_step);
+                    recognized_action = true;
+                    record_hud_action(&mut state, "Scroll down");
                 }
                 key if key == bindings.scroll_left => {
                     state.enigo.mouse_scroll_x(-scroll_step);
+                    recognized_action = true;
+                    record_hud_action(&mut state, "Scroll left");
                 }
                 key if key == bindings.scroll_right => {
                     state.enigo.mouse_scroll_x(scroll_step);
+                    recognized_action = true;
+                    record_hud_action(&mut state, "Scroll right");
                 }
                 key if key == bindings.left_click => {
                     if is_first_keydown {
                         state.enigo.mouse_click(MouseButton::Left);
+                        recognized_action = true;
+                        record_hud_action(&mut state, "Left click");
                     }
                 }
                 key if key == bindings.right_click => {
                     if is_first_keydown {
                         state.enigo.mouse_click(MouseButton::Right);
+                        recognized_action = true;
+                        record_hud_action(&mut state, "Right click");
                     }
                 }
                 key if key == bindings.drag_toggle => {
                     if is_first_keydown {
                         if state.drag_active {
                             state.enigo.mouse_up(MouseButton::Left);
+                            record_hud_action(&mut state, "Drag released");
                         } else {
                             state.enigo.mouse_down(MouseButton::Left);
+                            record_hud_action(&mut state, "Drag engaged");
                         }
+                        recognized_action = true;
                         state.drag_active = !state.drag_active;
                     }
                 }
                 _ => {}
             }
+            if is_first_keydown && !recognized_action {
+                maybe_record_unknown_key_hint(&mut state, keycode, bindings);
+            }
         }
+
+        update_hud_overlay(&mut state);
 
         // Suppress all keydown/keyup events while mouse mode is active.
         ptr::null_mut()
@@ -348,11 +414,21 @@ fn maybe_reload_grid_overlay_config(state: &mut AppState) {
     match config::load_config_for_reload() {
         Ok(config) => {
             let settings = config.grid_overlay_settings();
+            let hud_settings = config.hud_settings();
+            let mut reloaded_any = false;
             if settings != state.grid_overlay_settings {
                 state.grid_overlay_settings = settings.clone();
                 state.overlay.apply_settings(settings);
+                reloaded_any = true;
+            }
+            if hud_settings != state.hud_settings {
+                state.hud_settings = hud_settings;
+                state.overlay.apply_hud_settings(hud_settings);
+                reloaded_any = true;
+            }
+            if reloaded_any {
                 eprintln!(
-                    "Reloaded grid overlay settings from {}",
+                    "Reloaded overlay settings from {}",
                     config::config_path().display()
                 );
             }
@@ -364,6 +440,59 @@ fn maybe_reload_grid_overlay_config(state: &mut AppState) {
             }
             state.last_reload_error = Some(error);
         }
+    }
+}
+
+fn hud_mode_label(state: &AppState) -> &'static str {
+    if state.grid.is_active() {
+        "Grid mode"
+    } else if state.drag_active {
+        "Mouse mode (drag)"
+    } else {
+        "Mouse mode"
+    }
+}
+
+fn current_hud_action(state: &AppState) -> Option<&str> {
+    let until = state.last_action_until?;
+    if Instant::now() > until {
+        return None;
+    }
+    state.last_action_message.as_deref()
+}
+
+fn record_hud_action(state: &mut AppState, action: &str) {
+    state.last_action_message = Some(action.to_string());
+    state.last_action_until = Some(Instant::now() + HUD_ACTION_DURATION);
+}
+
+fn update_hud_overlay(state: &mut AppState) {
+    let mode = hud_mode_label(state).to_string();
+    let action = current_hud_action(state).map(str::to_string);
+    state.overlay.show_hud(&mode, action.as_deref());
+}
+
+fn maybe_record_unknown_key_hint(state: &mut AppState, keycode: i64, bindings: KeyBindings) {
+    if !state.hud_settings.show_unknown_key_hint {
+        return;
+    }
+    if keycode == bindings.toggle_key {
+        return;
+    }
+    if let Some(last) = state.last_unknown_hint_at
+        && last.elapsed() < HUD_UNKNOWN_KEY_HINT_COOLDOWN
+    {
+        return;
+    }
+    state.last_unknown_hint_at = Some(Instant::now());
+    record_hud_action(state, "Ignored key");
+    play_unknown_key_sound();
+}
+
+fn play_unknown_key_sound() {
+    // SAFETY: NSBeep is an AppKit call with no arguments and no retained objects.
+    unsafe {
+        NSBeep();
     }
 }
 

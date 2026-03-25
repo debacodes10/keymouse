@@ -19,6 +19,7 @@ Keyboard-driven mouse control for **macOS** and **Windows** with Vim-style navig
 - Recursive 3x3 jump grid with remappable selection keys and monitor switching (`1..9`)
 - Configurable key bindings and modifiers
 - Configurable grid visuals (`theme`, `opacity`, `color`, `labels`)
+- Optional HUD overlay showing mode, recent action, and optional ignored-key hints
 
 macOS-only extras:
 
@@ -226,6 +227,13 @@ grid_color = "#4fd1ff"
 # Optional: override what the grid shows on screen.
 # If omitted, labels follow `grid_selection_keys`.
 # grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
+
+# HUD overlay
+hud_enabled = true
+hud_show_last_action = true
+hud_unknown_key_hint = false
+hud_opacity = 0.9
+hud_position = "top_right"
 ```
 
 Supported key names include:
@@ -236,6 +244,13 @@ Supported key names include:
 - modifiers: `shift`, `option`, `alt`
 
 `grid_selection_keys` must contain exactly 9 unique supported keys. They cannot reuse `toggle_key`, `grid_key`, or `confirm_key`.
+
+HUD settings:
+- `hud_enabled`: show mode/status HUD while mouse mode is enabled
+- `hud_show_last_action`: show a short-lived last action line
+- `hud_unknown_key_hint`: optional ignored-key hint for non-configured keys in mouse mode
+- `hud_opacity`: `0.0` to `1.0`
+- `hud_position`: `top_left`, `top_right`, `bottom_left`, or `bottom_right`
 
 ## Troubleshooting
 

@@ -41,3 +41,11 @@ grid_opacity = 1.0
 grid_color = ""
 # Optional visual label override. Leave commented out to show the configured grid keys.
 # grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
+
+# HUD overlay (shows current mode and recent actions while mouse mode is on)
+hud_enabled = true
+hud_show_last_action = true
+hud_unknown_key_hint = false
+hud_opacity = 0.9
+# Available values: "top_left", "top_right", "bottom_left", "bottom_right"
+hud_position = "top_right"

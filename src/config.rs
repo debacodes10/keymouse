@@ -6,6 +6,7 @@ use std::path::PathBuf;
 const GRID_LABEL_COUNT: usize = 9;
 const GRID_LABEL_MAX_CHARS: usize = 6;
 const SUPPORTED_GRID_THEMES: [&str; 4] = ["classic", "midnight", "ocean", "forest"];
+const SUPPORTED_HUD_POSITIONS: [&str; 4] = ["top_left", "top_right", "bottom_left", "bottom_right"];
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
@@ -31,6 +32,11 @@ pub struct Config {
     pub grid_theme: String,
     pub grid_opacity: f64,
     pub grid_color: String,
+    pub hud_enabled: bool,
+    pub hud_show_last_action: bool,
+    pub hud_unknown_key_hint: bool,
+    pub hud_opacity: f64,
+    pub hud_position: String,
 }
 
 impl Default for Config {
@@ -57,6 +63,11 @@ impl Default for Config {
             grid_theme: "classic".to_string(),
             grid_opacity: 1.0,
             grid_color: String::new(),
+            hud_enabled: true,
+            hud_show_last_action: true,
+            hud_unknown_key_hint: false,
+            hud_opacity: 0.9,
+            hud_position: "top_right".to_string(),
         }
     }
 }
@@ -96,6 +107,15 @@ grid_opacity = 1.0
 grid_color = ""
 # Optional visual label override. Leave commented out to show the configured grid keys.
 # grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
+
+# HUD overlay
+hud_enabled = true
+hud_show_last_action = true
+hud_unknown_key_hint = false
+# Opacity multiplier for the HUD overlay: 0.0 to 1.0
+hud_opacity = 0.9
+# Position of the HUD overlay: "top_left", "top_right", "bottom_left", "bottom_right"
+hud_position = "top_right"
 "#
     }
 
@@ -107,6 +127,16 @@ grid_color = ""
             accent_color: parse_hex_color(&self.grid_color),
         }
     }
+
+    pub fn hud_settings(&self) -> HudSettings {
+        HudSettings {
+            enabled: self.hud_enabled,
+            show_last_action: self.hud_show_last_action,
+            show_unknown_key_hint: self.hud_unknown_key_hint,
+            opacity: self.hud_opacity.clamp(0.0, 1.0),
+            position: HudPosition::parse(&self.hud_position).unwrap_or(HudPosition::TopRight),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq)]
@@ -115,6 +145,35 @@ pub struct GridOverlaySettings {
     pub theme: String,
     pub opacity: f64,
     pub accent_color: Option<(f64, f64, f64)>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum HudPosition {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
+impl HudPosition {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "top_left" => Some(Self::TopLeft),
+            "top_right" => Some(Self::TopRight),
+            "bottom_left" => Some(Self::BottomLeft),
+            "bottom_right" => Some(Self::BottomRight),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub struct HudSettings {
+    pub enabled: bool,
+    pub show_last_action: bool,
+    pub show_unknown_key_hint: bool,
+    pub opacity: f64,
+    pub position: HudPosition,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -600,6 +659,20 @@ fn validate_config(config: &Config) -> Vec<String> {
     if !config.grid_color.trim().is_empty() && parse_hex_color(&config.grid_color).is_none() {
         errors.push("`grid_color` must be a hex RGB color like `#4fd1ff`.".to_string());
     }
+    if !config.hud_opacity.is_finite() || !(0.0..=1.0).contains(&config.hud_opacity) {
+        errors.push("`hud_opacity` must be a number between 0.0 and 1.0.".to_string());
+    }
+    if HudPosition::parse(&config.hud_position).is_none() {
+        errors.push(format!(
+            "`hud_position` has unsupported value `{}`. Allowed: {}.",
+            config.hud_position,
+            SUPPORTED_HUD_POSITIONS
+                .iter()
+                .map(|value| format!("`{value}`"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
 
     errors
 }
@@ -1002,6 +1075,34 @@ toggle_key = "f2"
         assert!(
             errors.iter().any(|error| error.contains("`grid_color`")),
             "expected grid_color validation error, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_hud_position() {
+        let config = Config {
+            hud_position: "middle".to_string(),
+            ..Config::default()
+        };
+
+        let errors = validate_config(&config);
+        assert!(
+            errors.iter().any(|error| error.contains("`hud_position`")),
+            "expected hud_position validation error, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_hud_opacity() {
+        let config = Config {
+            hud_opacity: 1.5,
+            ..Config::default()
+        };
+
+        let errors = validate_config(&config);
+        assert!(
+            errors.iter().any(|error| error.contains("`hud_opacity`")),
+            "expected hud_opacity validation error, got: {errors:?}"
         );
     }
 }

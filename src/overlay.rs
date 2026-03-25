@@ -1,4 +1,4 @@
-use crate::config::GridOverlaySettings;
+use crate::config::{GridOverlaySettings, HudPosition, HudSettings};
 use crate::grid::bounds::GridBounds;
 use cocoa::appkit::{
     NSApp, NSApplication, NSApplicationActivationPolicyProhibited, NSBackingStoreBuffered,
@@ -28,6 +28,9 @@ pub struct Overlay {
     cell_labels: [id; 9],
     cell_markers: [id; 9],
     settings: GridOverlaySettings,
+    hud_window: id,
+    hud_label: id,
+    hud_settings: HudSettings,
 }
 
 impl Overlay {
@@ -49,6 +52,9 @@ impl Overlay {
             cell_labels: [nil; 9],
             cell_markers: [nil; 9],
             settings: default_overlay_settings(),
+            hud_window: nil,
+            hud_label: nil,
+            hud_settings: default_hud_settings(),
         }
     }
 
@@ -69,6 +75,11 @@ impl Overlay {
     }
 
     pub fn hide(&mut self) {
+        self.hide_grid();
+        self.hide_hud();
+    }
+
+    pub fn hide_grid(&mut self) {
         if self.window == nil {
             return;
         }
@@ -76,6 +87,17 @@ impl Overlay {
         unsafe {
             let _pool = NSAutoreleasePool::new(nil);
             let _: () = msg_send![self.window, orderOut: nil];
+        }
+    }
+
+    pub fn hide_hud(&mut self) {
+        if self.hud_window == nil {
+            return;
+        }
+
+        unsafe {
+            let _pool = NSAutoreleasePool::new(nil);
+            let _: () = msg_send![self.hud_window, orderOut: nil];
         }
     }
 
@@ -125,6 +147,39 @@ impl Overlay {
             let _pool = NSAutoreleasePool::new(nil);
             self.apply_visuals();
             self.layout_cells();
+        }
+    }
+
+    pub fn apply_hud_settings(&mut self, settings: HudSettings) {
+        self.hud_settings = settings;
+        if self.hud_window == nil {
+            return;
+        }
+
+        unsafe {
+            let _pool = NSAutoreleasePool::new(nil);
+            let _: () = msg_send![self.hud_window, setAlphaValue: self.hud_settings.opacity.clamp(0.0, 1.0)];
+            self.update_hud_frame();
+        }
+    }
+
+    pub fn show_hud(&mut self, mode: &str, last_action: Option<&str>) {
+        if !self.hud_settings.enabled {
+            self.hide_hud();
+            return;
+        }
+
+        unsafe {
+            let _pool = NSAutoreleasePool::new(nil);
+            self.ensure_hud_window();
+            self.update_hud_frame();
+            let text = match last_action {
+                Some(action) if self.hud_settings.show_last_action => format!("{mode}\n{action}"),
+                _ => mode.to_string(),
+            };
+            let ns_text = NSString::alloc(nil).init_str(&text);
+            let _: () = msg_send![self.hud_label, setStringValue: ns_text];
+            let _: () = msg_send![self.hud_window, orderFrontRegardless];
         }
     }
 
@@ -326,6 +381,101 @@ impl Overlay {
             let _: () = msg_send![self.depth_label, setStringValue: ns_text];
         }
     }
+
+    fn ensure_hud_window(&mut self) {
+        if self.hud_window != nil {
+            return;
+        }
+
+        unsafe {
+            let frame = NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(320.0, 56.0));
+            let window: id = msg_send![class!(NSWindow), alloc];
+            let window: id = msg_send![
+                window,
+                initWithContentRect: frame
+                styleMask: NSWindowStyleMask::NSBorderlessWindowMask
+                backing: NSBackingStoreBuffered
+                defer: NO
+            ];
+            let bg: id = msg_send![
+                class!(NSColor),
+                colorWithCalibratedRed: 0.08_f64
+                green: 0.10_f64
+                blue: 0.12_f64
+                alpha: 0.94_f64
+            ];
+            let _: () = msg_send![window, setOpaque: NO];
+            let _: () = msg_send![window, setBackgroundColor: bg];
+            let _: () = msg_send![window, setHasShadow: YES];
+            let _: () = msg_send![window, setIgnoresMouseEvents: YES];
+            let _: () = msg_send![window, setLevel: 5001_i64];
+            let _: () = msg_send![window, setReleasedWhenClosed: NO];
+            let _: () = msg_send![window, setAlphaValue: self.hud_settings.opacity.clamp(0.0, 1.0)];
+
+            let content: id = msg_send![window, contentView];
+            let label_frame = NSRect::new(NSPoint::new(12.0, 8.0), NSSize::new(296.0, 40.0));
+            let label: id = msg_send![class!(NSTextField), alloc];
+            let label: id = msg_send![label, initWithFrame: label_frame];
+            let font: id = msg_send![class!(NSFont), boldSystemFontOfSize: 14.0_f64];
+            let text_color: id = msg_send![
+                class!(NSColor),
+                colorWithCalibratedRed: 0.93_f64
+                green: 0.96_f64
+                blue: 1.0_f64
+                alpha: 1.0_f64
+            ];
+
+            let _: () = msg_send![label, setBezeled: NO];
+            let _: () = msg_send![label, setDrawsBackground: NO];
+            let _: () = msg_send![label, setEditable: NO];
+            let _: () = msg_send![label, setSelectable: NO];
+            let _: () = msg_send![label, setAlignment: ALIGN_LEFT];
+            let _: () = msg_send![label, setFont: font];
+            let _: () = msg_send![label, setTextColor: text_color];
+            let _: () = msg_send![content, addSubview: label];
+
+            self.hud_window = window;
+            self.hud_label = label;
+        }
+    }
+
+    fn update_hud_frame(&self) {
+        if self.hud_window == nil {
+            return;
+        }
+        let Some(desktop) = desktop_bounds() else {
+            return;
+        };
+
+        let width = 320.0;
+        let height = 56.0;
+        let margin = 24.0;
+
+        let x = match self.hud_settings.position {
+            HudPosition::TopLeft | HudPosition::BottomLeft => desktop.x + margin,
+            HudPosition::TopRight | HudPosition::BottomRight => {
+                (desktop.x + desktop.width) - width - margin
+            }
+        };
+        // `appkit_frame_y` flips Quartz Y -> AppKit Y. So a "top" Quartz anchor
+        // starts near desktop origin + margin, while "bottom" starts near max Y.
+        let y_top = match self.hud_settings.position {
+            HudPosition::TopLeft | HudPosition::TopRight => desktop.y + margin,
+            HudPosition::BottomLeft | HudPosition::BottomRight => {
+                (desktop.y + desktop.height) - height - margin
+            }
+        };
+        let appkit_y = self.appkit_frame_y(GridBounds {
+            x,
+            y: y_top,
+            width,
+            height,
+        });
+        unsafe {
+            let frame = NSRect::new(NSPoint::new(x, appkit_y), NSSize::new(width, height));
+            let _: () = msg_send![self.hud_window, setFrame: frame display: YES];
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -460,13 +610,29 @@ fn desktop_bounds() -> Option<GridBounds> {
 
 impl Drop for Overlay {
     fn drop(&mut self) {
-        if self.window == nil {
+        if self.window == nil && self.hud_window == nil {
             return;
         }
 
         unsafe {
-            let _: () = msg_send![self.window, orderOut: nil];
-            let _: () = msg_send![self.window, close];
+            if self.window != nil {
+                let _: () = msg_send![self.window, orderOut: nil];
+                let _: () = msg_send![self.window, close];
+            }
+            if self.hud_window != nil {
+                let _: () = msg_send![self.hud_window, orderOut: nil];
+                let _: () = msg_send![self.hud_window, close];
+            }
         }
+    }
+}
+
+fn default_hud_settings() -> HudSettings {
+    HudSettings {
+        enabled: true,
+        show_last_action: true,
+        show_unknown_key_hint: false,
+        opacity: 0.9,
+        position: HudPosition::TopRight,
     }
 }
