@@ -646,7 +646,7 @@ fn paint_overlay(hwnd: HWND) {
         let text_color: u32 = 0xFFFFFF;
 
         let pen = CreatePen(PS_SOLID, 2, grid_color);
-        let old_pen = SelectObject(hdc, pen as *mut c_void);
+        let old_pen = SelectObject(hdc, pen);
 
         MoveToEx(hdc, 0, cell_h, null_mut());
         LineTo(hdc, width, cell_h);
@@ -670,7 +670,7 @@ fn paint_overlay(hwnd: HWND) {
         for row in 0..3 {
             for col in 0..3 {
                 let index = (row * 3 + col) as usize;
-                let label = format!("{}", render.labels[index]);
+                let label = render.labels[index].to_string();
                 let label_wide = to_wide(&label);
                 let x = col * cell_w + (cell_w / 2) - 6;
                 let y = row * cell_h + (cell_h / 2) - 8;
@@ -695,7 +695,7 @@ fn paint_overlay(hwnd: HWND) {
         );
 
         SelectObject(hdc, old_pen);
-        DeleteObject(pen as *mut c_void);
+        DeleteObject(pen);
         EndPaint(hwnd, &ps);
     }
 }
