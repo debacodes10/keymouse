@@ -264,7 +264,7 @@ unsafe extern "C" fn keyboard_callback(
                     return ptr::null_mut();
                 }
 
-                if let Some((row, col)) = grid_cell_for_keycode(keycode) {
+                if let Some((row, col)) = grid_cell_for_keycode(keycode, &bindings) {
                     state.grid.zoom_into_cell(row, col);
                     if let Some((bounds, depth)) = state.grid.render_state() {
                         state.overlay.show_or_update(bounds, depth);

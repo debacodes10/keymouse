@@ -19,6 +19,7 @@ scroll_right = "m"
 
 # Grid mode controls
 grid_key = ";"
+grid_selection_keys = ["q", "w", "e", "a", "s", "d", "z", "x", "c"]
 confirm_key = "enter"
 
 # Mouse click keys
@@ -38,5 +39,5 @@ grid_theme = "classic"
 grid_opacity = 1.0
 # Optional grid accent color in hex format (#RRGGBB). Leave empty to use theme defaults.
 grid_color = ""
-# Visual labels only (controls remain Q/W/E A/S/D Z/X/C)
-grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
+# Optional visual label override. Leave commented out to show the configured grid keys.
+# grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]

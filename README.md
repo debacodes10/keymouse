@@ -16,7 +16,7 @@ Keyboard-driven mouse control for **macOS** and **Windows** with Vim-style navig
 - Move cursor with configurable keys (default `H J K L`)
 - Scroll with configurable keys (default `U N B M`)
 - Left/right click and drag toggle from keyboard
-- Recursive 3x3 jump grid with monitor switching (`1..9`)
+- Recursive 3x3 jump grid with remappable selection keys and monitor switching (`1..9`)
 - Configurable key bindings and modifiers
 - Configurable grid visuals (`theme`, `opacity`, `color`, `labels`)
 
@@ -139,7 +139,7 @@ cargo run --release
 
 - `;`: open grid on active display
 - `1..9`: switch monitor while grid is active
-- `Q/W/E A/S/D Z/X/C`: zoom into cell
+- Configured `grid_selection_keys`: zoom into cell
 - `Enter`: confirm jump
 - `Esc`: cancel grid
 
@@ -210,6 +210,7 @@ scroll_left = "b"
 scroll_right = "m"
 
 grid_key = ";"
+grid_selection_keys = ["q", "w", "e", "a", "s", "d", "z", "x", "c"]
 confirm_key = "enter"
 
 left_click = "f"
@@ -222,7 +223,9 @@ slow_modifier = "option"
 grid_theme = "classic"
 grid_opacity = 1.0
 grid_color = "#4fd1ff"
-grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
+# Optional: override what the grid shows on screen.
+# If omitted, labels follow `grid_selection_keys`.
+# grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
 ```
 
 Supported key names include:
@@ -231,6 +234,8 @@ Supported key names include:
 - `;` / `semicolon`, `enter`, `return`, `escape`, `esc`
 - `f1` ... `f12`
 - modifiers: `shift`, `option`, `alt`
+
+`grid_selection_keys` must contain exactly 9 unique supported keys. They cannot reuse `toggle_key`, `grid_key`, or `confirm_key`.
 
 ## Troubleshooting
 

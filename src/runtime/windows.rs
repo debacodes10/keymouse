@@ -248,7 +248,7 @@ unsafe extern "system" fn keyboard_callback(code: i32, wparam: WPARAM, lparam: L
                     return 1;
                 }
 
-                if let Some((row, col)) = grid_cell_for_keycode(keycode) {
+                if let Some((row, col)) = grid_cell_for_keycode(keycode, &bindings) {
                     state.grid.zoom_into_cell(row, col);
                     if let Some((bounds, depth)) = state.grid.render_state() {
                         state.overlay.show_or_update(bounds, depth);

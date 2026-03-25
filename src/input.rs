@@ -3,18 +3,6 @@ use crate::config::{KeyBindings, Modifier};
 use std::collections::HashSet;
 
 #[cfg(target_os = "macos")]
-pub const KEYCODE_D: i64 = 2;
-#[cfg(target_os = "windows")]
-pub const KEYCODE_D: i64 = 0x44;
-#[cfg(target_os = "macos")]
-pub const KEYCODE_F: i64 = 3;
-#[cfg(target_os = "windows")]
-pub const KEYCODE_F: i64 = 0x46;
-#[cfg(target_os = "macos")]
-pub const KEYCODE_G: i64 = 5;
-#[cfg(target_os = "windows")]
-pub const KEYCODE_G: i64 = 0x47;
-#[cfg(target_os = "macos")]
 pub const KEYCODE_ESCAPE: i64 = 53;
 #[cfg(target_os = "windows")]
 pub const KEYCODE_ESCAPE: i64 = 0x1B;
@@ -90,39 +78,6 @@ pub const KEYCODE_NUMPAD_8: i64 = 0x68;
 pub const KEYCODE_NUMPAD_9: i64 = 92;
 #[cfg(target_os = "windows")]
 pub const KEYCODE_NUMPAD_9: i64 = 0x69;
-#[cfg(target_os = "macos")]
-pub const KEYCODE_Q: i64 = 12;
-#[cfg(target_os = "windows")]
-pub const KEYCODE_Q: i64 = 0x51;
-#[cfg(target_os = "macos")]
-pub const KEYCODE_W: i64 = 13;
-#[cfg(target_os = "windows")]
-pub const KEYCODE_W: i64 = 0x57;
-#[cfg(target_os = "macos")]
-pub const KEYCODE_E: i64 = 14;
-#[cfg(target_os = "windows")]
-pub const KEYCODE_E: i64 = 0x45;
-#[cfg(target_os = "macos")]
-pub const KEYCODE_A: i64 = 0;
-#[cfg(target_os = "windows")]
-pub const KEYCODE_A: i64 = 0x41;
-#[cfg(target_os = "macos")]
-pub const KEYCODE_S: i64 = 1;
-#[cfg(target_os = "windows")]
-pub const KEYCODE_S: i64 = 0x53;
-#[cfg(target_os = "macos")]
-pub const KEYCODE_Z: i64 = 6;
-#[cfg(target_os = "windows")]
-pub const KEYCODE_Z: i64 = 0x5A;
-#[cfg(target_os = "macos")]
-pub const KEYCODE_X: i64 = 7;
-#[cfg(target_os = "windows")]
-pub const KEYCODE_X: i64 = 0x58;
-#[cfg(target_os = "macos")]
-pub const KEYCODE_C: i64 = 8;
-#[cfg(target_os = "windows")]
-pub const KEYCODE_C: i64 = 0x43;
-
 const NORMAL_SPEED: i32 = 20;
 const FAST_SPEED: i32 = 120;
 const SLOW_SPEED: i32 = 5;
@@ -130,21 +85,34 @@ const NORMAL_SCROLL: i32 = 8;
 const FAST_SCROLL: i32 = 24;
 const SLOW_SCROLL: i32 = 1;
 
-pub fn grid_cell_for_keycode(keycode: i64) -> Option<(i32, i32)> {
-    match keycode {
-        KEYCODE_Q => Some((0, 0)),
-        KEYCODE_W => Some((0, 1)),
-        KEYCODE_E => Some((0, 2)),
-        KEYCODE_A => Some((1, 0)),
-        KEYCODE_S => Some((1, 1)),
-        KEYCODE_D => Some((1, 2)),
-        KEYCODE_Z => Some((2, 0)),
-        KEYCODE_X => Some((2, 1)),
-        KEYCODE_C => Some((2, 2)),
-        // Alternate bindings to support home-row recursive selection examples.
-        KEYCODE_F => Some((1, 0)),
-        KEYCODE_G => Some((1, 1)),
-        _ => None,
+pub fn grid_cell_for_keycode(keycode: i64, bindings: &KeyBindings) -> Option<(i32, i32)> {
+    bindings
+        .grid_selection_keys
+        .iter()
+        .position(|configured_keycode| *configured_keycode == keycode)
+        .map(|index| ((index / 3) as i32, (index % 3) as i32))
+}
+
+#[cfg(test)]
+pub fn keybindings_with_grid_selection_keys(keys: [i64; 9]) -> KeyBindings {
+    KeyBindings {
+        toggle_key: 0,
+        movement_up: 0,
+        movement_down: 0,
+        movement_left: 0,
+        movement_right: 0,
+        scroll_up: 0,
+        scroll_down: 0,
+        scroll_left: 0,
+        scroll_right: 0,
+        grid_key: 0,
+        grid_selection_keys: keys,
+        confirm_key: 0,
+        left_click: 0,
+        right_click: 0,
+        drag_toggle: 0,
+        fast_modifier: Modifier::Shift,
+        slow_modifier: Modifier::Option,
     }
 }
 
@@ -255,7 +223,10 @@ fn held_key_modifier_active(modifier: Modifier, held_keys: &HashSet<i64>) -> boo
 
 #[cfg(test)]
 mod tests {
-    use super::{movement_step_from_modifiers, scroll_step_from_modifiers};
+    use super::{
+        grid_cell_for_keycode, keybindings_with_grid_selection_keys, movement_step_from_modifiers,
+        scroll_step_from_modifiers,
+    };
 
     #[test]
     fn movement_step_prioritizes_fast_modifier() {
@@ -271,5 +242,15 @@ mod tests {
         assert_eq!(scroll_step_from_modifiers(true, false), 24);
         assert_eq!(scroll_step_from_modifiers(false, true), 1);
         assert_eq!(scroll_step_from_modifiers(false, false), 8);
+    }
+
+    #[test]
+    fn grid_cell_lookup_uses_configured_selection_keys() {
+        let bindings = keybindings_with_grid_selection_keys([10, 11, 12, 13, 14, 15, 16, 17, 18]);
+
+        assert_eq!(grid_cell_for_keycode(10, &bindings), Some((0, 0)));
+        assert_eq!(grid_cell_for_keycode(15, &bindings), Some((1, 2)));
+        assert_eq!(grid_cell_for_keycode(18, &bindings), Some((2, 2)));
+        assert_eq!(grid_cell_for_keycode(999, &bindings), None);
     }
 }

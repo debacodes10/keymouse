@@ -20,13 +20,14 @@ pub struct Config {
     pub scroll_left: String,
     pub scroll_right: String,
     pub grid_key: String,
+    pub grid_selection_keys: Vec<String>,
     pub confirm_key: String,
     pub left_click: String,
     pub right_click: String,
     pub drag_toggle: String,
     pub fast_modifier: String,
     pub slow_modifier: String,
-    pub grid_labels: Vec<String>,
+    pub grid_labels: Option<Vec<String>>,
     pub grid_theme: String,
     pub grid_opacity: f64,
     pub grid_color: String,
@@ -45,13 +46,14 @@ impl Default for Config {
             scroll_left: "b".to_string(),
             scroll_right: "m".to_string(),
             grid_key: ";".to_string(),
+            grid_selection_keys: default_grid_selection_keys(),
             confirm_key: "enter".to_string(),
             left_click: "f".to_string(),
             right_click: "d".to_string(),
             drag_toggle: "v".to_string(),
             fast_modifier: "shift".to_string(),
             slow_modifier: "option".to_string(),
-            grid_labels: default_grid_labels(),
+            grid_labels: None,
             grid_theme: "classic".to_string(),
             grid_opacity: 1.0,
             grid_color: String::new(),
@@ -74,6 +76,7 @@ scroll_left = "b"
 scroll_right = "m"
 
 grid_key = ";"
+grid_selection_keys = ["q", "w", "e", "a", "s", "d", "z", "x", "c"]
 confirm_key = "enter"
 
 left_click = "f"
@@ -91,14 +94,14 @@ grid_opacity = 1.0
 # Optional accent color override for the grid in hex format (#RRGGBB).
 # Leave empty to use the selected theme colors.
 grid_color = ""
-# Labels are visual only; key mapping remains Q/W/E A/S/D Z/X/C.
-grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
+# Optional visual label override. Leave commented out to show the configured grid keys.
+# grid_labels = ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
 "#
     }
 
     pub fn grid_overlay_settings(&self) -> GridOverlaySettings {
         GridOverlaySettings {
-            labels: labels_from_vec(&self.grid_labels).unwrap_or_else(default_grid_label_array),
+            labels: overlay_labels_from_config(self).unwrap_or_else(default_grid_label_array),
             theme: self.grid_theme.trim().to_ascii_lowercase(),
             opacity: self.grid_opacity.clamp(0.0, 1.0),
             accent_color: parse_hex_color(&self.grid_color),
@@ -142,6 +145,7 @@ pub struct KeyBindings {
     pub scroll_left: i64,
     pub scroll_right: i64,
     pub grid_key: i64,
+    pub grid_selection_keys: [i64; GRID_LABEL_COUNT],
     pub confirm_key: i64,
     pub left_click: i64,
     pub right_click: i64,
@@ -163,6 +167,10 @@ impl KeyBindings {
             scroll_left: required_keycode(&config.scroll_left, "scroll_left"),
             scroll_right: required_keycode(&config.scroll_right, "scroll_right"),
             grid_key: required_keycode(&config.grid_key, "grid_key"),
+            grid_selection_keys: required_keycode_array(
+                &config.grid_selection_keys,
+                "grid_selection_keys",
+            ),
             confirm_key: required_keycode(&config.confirm_key, "confirm_key"),
             left_click: required_keycode(&config.left_click, "left_click"),
             right_click: required_keycode(&config.right_click, "right_click"),
@@ -383,9 +391,19 @@ fn required_keycode(value: &str, field_name: &str) -> i64 {
     i64::from(code)
 }
 
+fn required_keycode_array(values: &[String], field_name: &str) -> [i64; GRID_LABEL_COUNT] {
+    values
+        .iter()
+        .enumerate()
+        .map(|(index, value)| required_keycode(value, &format!("{field_name}[{index}]")))
+        .collect::<Vec<_>>()
+        .try_into()
+        .expect("validated config must provide exactly nine grid selection keys")
+}
+
 fn validate_config(config: &Config) -> Vec<String> {
     let mut errors = Vec::new();
-    let mut seen: HashMap<String, Vec<&str>> = HashMap::new();
+    let mut seen: HashMap<String, Vec<String>> = HashMap::new();
     let toggle_key = config.toggle_key.trim().to_ascii_lowercase();
 
     if toggle_key.is_empty() {
@@ -434,7 +452,71 @@ fn validate_config(config: &Config) -> Vec<String> {
             ));
         }
 
-        seen.entry(normalized).or_default().push(field);
+        seen.entry(normalized).or_default().push(field.to_string());
+    }
+
+    if config.grid_selection_keys.len() != GRID_LABEL_COUNT {
+        errors.push(format!(
+            "`grid_selection_keys` must contain exactly {} entries.",
+            GRID_LABEL_COUNT
+        ));
+    } else {
+        let mut seen_grid_keys: HashMap<String, Vec<String>> = HashMap::new();
+        for (index, value) in config.grid_selection_keys.iter().enumerate() {
+            let normalized = value.trim().to_ascii_lowercase();
+            let field = format!("grid_selection_keys[{index}]");
+
+            if normalized.is_empty() {
+                errors.push(format!("`{field}` cannot be empty."));
+                continue;
+            }
+
+            if is_modifier_name(&normalized) {
+                errors.push(format!(
+                    "`{field}` cannot use modifier key `{}`; choose a regular key.",
+                    value
+                ));
+            }
+
+            if !toggle_key.is_empty() && normalized == toggle_key {
+                errors.push(format!(
+                    "`{field}` cannot use `{}`; it is reserved for mouse-mode toggle.",
+                    config.toggle_key
+                ));
+            }
+
+            for (reserved_field, reserved_value) in [
+                ("grid_key", &config.grid_key),
+                ("confirm_key", &config.confirm_key),
+            ] {
+                let reserved = reserved_value.trim().to_ascii_lowercase();
+                if !reserved.is_empty() && normalized == reserved {
+                    errors.push(format!(
+                        "`{field}` cannot use `{}` because `{reserved_field}` already uses it.",
+                        value
+                    ));
+                }
+            }
+
+            if key_from_string(&normalized).is_none() {
+                errors.push(format!(
+                    "`{field}` has unsupported key `{}`. Use a supported key name from README.",
+                    value
+                ));
+            }
+
+            seen_grid_keys.entry(normalized).or_default().push(field);
+        }
+
+        for (key, fields) in seen_grid_keys {
+            if fields.len() > 1 {
+                errors.push(format!(
+                    "Grid selection key `{}` is assigned to multiple cells: {}.",
+                    key,
+                    fields.join(", ")
+                ));
+            }
+        }
     }
 
     for (key, fields) in seen {
@@ -471,25 +553,32 @@ fn validate_config(config: &Config) -> Vec<String> {
         );
     }
 
-    if config.grid_labels.len() != GRID_LABEL_COUNT {
-        errors.push(format!(
-            "`grid_labels` must contain exactly {} entries.",
-            GRID_LABEL_COUNT
-        ));
-    } else {
-        for (index, label) in config.grid_labels.iter().enumerate() {
-            let trimmed = label.trim();
-            if trimmed.is_empty() {
-                errors.push(format!("`grid_labels[{index}]` cannot be empty."));
-                continue;
-            }
-            if trimmed.chars().count() > GRID_LABEL_MAX_CHARS {
-                errors.push(format!(
-                    "`grid_labels[{index}]` is too long (max {} characters).",
-                    GRID_LABEL_MAX_CHARS
-                ));
+    if let Some(labels) = &config.grid_labels {
+        if labels.len() != GRID_LABEL_COUNT {
+            errors.push(format!(
+                "`grid_labels` must contain exactly {} entries.",
+                GRID_LABEL_COUNT
+            ));
+        } else {
+            for (index, label) in labels.iter().enumerate() {
+                let trimmed = label.trim();
+                if trimmed.is_empty() {
+                    errors.push(format!("`grid_labels[{index}]` cannot be empty."));
+                    continue;
+                }
+                if trimmed.chars().count() > GRID_LABEL_MAX_CHARS {
+                    errors.push(format!(
+                        "`grid_labels[{index}]` is too long (max {} characters).",
+                        GRID_LABEL_MAX_CHARS
+                    ));
+                }
             }
         }
+    } else if derived_grid_labels_from_keys(&config.grid_selection_keys).is_none() {
+        errors.push(format!(
+            "`grid_selection_keys` must contain exactly {} entries.",
+            GRID_LABEL_COUNT
+        ));
     }
 
     let theme = config.grid_theme.trim().to_ascii_lowercase();
@@ -537,8 +626,8 @@ fn is_modifier_name(value: &str) -> bool {
     matches!(value, "shift" | "option" | "alt")
 }
 
-fn default_grid_labels() -> Vec<String> {
-    ["Q", "W", "E", "A", "S", "D", "Z", "X", "C"]
+fn default_grid_selection_keys() -> Vec<String> {
+    ["q", "w", "e", "a", "s", "d", "z", "x", "c"]
         .iter()
         .map(|value| value.to_string())
         .collect()
@@ -567,6 +656,37 @@ fn labels_from_vec(values: &[String]) -> Option<[String; GRID_LABEL_COUNT]> {
     labels.try_into().ok()
 }
 
+fn overlay_labels_from_config(config: &Config) -> Option<[String; GRID_LABEL_COUNT]> {
+    if let Some(labels) = &config.grid_labels {
+        labels_from_vec(labels)
+    } else {
+        derived_grid_labels_from_keys(&config.grid_selection_keys)
+    }
+}
+
+fn derived_grid_labels_from_keys(values: &[String]) -> Option<[String; GRID_LABEL_COUNT]> {
+    if values.len() != GRID_LABEL_COUNT {
+        return None;
+    }
+
+    values
+        .iter()
+        .map(|value| display_label_for_key(value))
+        .collect::<Vec<_>>()
+        .try_into()
+        .ok()
+}
+
+fn display_label_for_key(value: &str) -> String {
+    match value.trim().to_ascii_lowercase().as_str() {
+        ";" | "semicolon" => ";".to_string(),
+        "enter" => "ENTER".to_string(),
+        "return" => "RETURN".to_string(),
+        "escape" | "esc" => "ESC".to_string(),
+        other => other.to_ascii_uppercase(),
+    }
+}
+
 fn parse_hex_color(value: &str) -> Option<(f64, f64, f64)> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
@@ -591,7 +711,7 @@ fn parse_hex_color(value: &str) -> Option<(f64, f64, f64)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Config, key_from_string, validate_config};
+    use super::{Config, key_from_string, overlay_labels_from_config, validate_config};
 
     #[test]
     fn parses_a_keycode_without_treating_it_as_invalid() {
@@ -728,6 +848,133 @@ mod tests {
             errors.is_empty(),
             "expected no validation errors, got: {errors:?}"
         );
+    }
+
+    #[test]
+    fn rejects_duplicate_grid_selection_keys() {
+        let config = Config {
+            grid_selection_keys: vec![
+                "q".to_string(),
+                "q".to_string(),
+                "e".to_string(),
+                "a".to_string(),
+                "s".to_string(),
+                "d".to_string(),
+                "z".to_string(),
+                "x".to_string(),
+                "c".to_string(),
+            ],
+            ..Config::default()
+        };
+
+        let errors = validate_config(&config);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.contains("assigned to multiple cells")),
+            "expected duplicate grid selection error, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_grid_selection_keys_that_conflict_with_reserved_controls() {
+        let config = Config {
+            grid_selection_keys: vec![
+                "f8".to_string(),
+                "w".to_string(),
+                "e".to_string(),
+                "a".to_string(),
+                "s".to_string(),
+                "d".to_string(),
+                "z".to_string(),
+                "x".to_string(),
+                "enter".to_string(),
+            ],
+            ..Config::default()
+        };
+
+        let errors = validate_config(&config);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.contains("reserved for mouse-mode toggle")),
+            "expected toggle conflict error, got: {errors:?}"
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.contains("confirm_key") && error.contains("already uses it")),
+            "expected confirm_key conflict error, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_conflicting_grid_selection_keys_from_toml() {
+        let config: Config = toml::from_str(
+            r#"
+grid_key = ";"
+grid_selection_keys = ["f1", "f2", "f3", "h", "j", "k", "n", "m", "l"]
+confirm_key = "enter"
+toggle_key = "f2"
+"#,
+        )
+        .expect("valid toml");
+
+        let errors = validate_config(&config);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.contains("grid_selection_keys[1]") && error.contains("toggle")),
+            "expected toggle conflict error, got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn derives_overlay_labels_from_grid_selection_keys_by_default() {
+        let config = Config {
+            grid_selection_keys: vec![
+                "f1".to_string(),
+                "f2".to_string(),
+                "f3".to_string(),
+                "j".to_string(),
+                "k".to_string(),
+                "l".to_string(),
+                ";".to_string(),
+                "esc".to_string(),
+                "return".to_string(),
+            ],
+            ..Config::default()
+        };
+
+        let labels = overlay_labels_from_config(&config).expect("derived labels should exist");
+        assert_eq!(labels[0], "F1");
+        assert_eq!(labels[3], "J");
+        assert_eq!(labels[6], ";");
+        assert_eq!(labels[7], "ESC");
+        assert_eq!(labels[8], "RETURN");
+    }
+
+    #[test]
+    fn respects_explicit_grid_label_overrides() {
+        let config = Config {
+            grid_labels: Some(vec![
+                "NW".to_string(),
+                "N".to_string(),
+                "NE".to_string(),
+                "W".to_string(),
+                "C".to_string(),
+                "E".to_string(),
+                "SW".to_string(),
+                "S".to_string(),
+                "SE".to_string(),
+            ]),
+            ..Config::default()
+        };
+
+        let labels = overlay_labels_from_config(&config).expect("override labels should exist");
+        assert_eq!(labels[0], "NW");
+        assert_eq!(labels[4], "C");
+        assert_eq!(labels[8], "SE");
     }
 
     #[test]
