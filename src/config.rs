@@ -128,6 +128,7 @@ hud_position = "top_right"
         }
     }
 
+    #[cfg(target_os = "macos")]
     pub fn hud_settings(&self) -> HudSettings {
         HudSettings {
             enabled: self.hud_enabled,
@@ -167,6 +168,7 @@ impl HudPosition {
     }
 }
 
+#[cfg(target_os = "macos")]
 #[derive(Clone, Copy, PartialEq)]
 pub struct HudSettings {
     pub enabled: bool,
