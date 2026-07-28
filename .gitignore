@@ -23,3 +23,4 @@
 # Local release artifacts (generated for GitHub releases)
 keymouse-macos-*
 *.zip
+.aider*
